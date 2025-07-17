@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Franky's Personal Hub</title>
+    <title>控制台界面</title>
     <style>
         * {
             margin: 0;
@@ -13,142 +13,335 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* 背景动画效果 */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.1) 0%, transparent 50%);
+            animation: backgroundShift 20s ease-in-out infinite;
+        }
+
+        @keyframes backgroundShift {
+            0%, 100% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.1) rotate(180deg); }
         }
 
         .container {
-            max-width: 1200px;
-            width: 90%;
-            padding: 40px;
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
         }
 
-        .header {
-            text-align: center;
-            margin-bottom: 60px;
+        /* 隐藏控制按钮区域 */
+        .hidden-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+            flex-wrap: wrap;
         }
 
-        .header h1 {
-            font-size: 3.5rem;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-            animation: fadeInUp 1s ease-out;
-        }
-
-        .header p {
-            font-size: 1.3rem;
-            opacity: 0.9;
-            animation: fadeInUp 1s ease-out 0.2s both;
-        }
-
-        .services-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 50px;
-        }
-
-        .service-card {
-            background: rgba(255, 255, 255, 0.1);
+        .hidden-btn {
+            background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px 30px;
-            text-align: center;
-            transition: all 0.3s ease;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            animation: fadeInUp 1s ease-out 0.4s both;
-        }
-
-        .service-card:hover {
-            transform: translateY(-10px);
-            background: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        }
-
-        .service-icon {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            display: block;
-        }
-
-        .service-card h3 {
-            font-size: 1.8rem;
-            margin-bottom: 15px;
-            color: #fff;
-        }
-
-        .service-card p {
-            font-size: 1.1rem;
-            margin-bottom: 25px;
-            opacity: 0.9;
-            line-height: 1.6;
-        }
-
-        .service-button {
-            display: inline-block;
-            padding: 15px 30px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
-            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 8px 12px;
+            color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
-            border-radius: 50px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.6;
+            transform: scale(0.9);
+            white-space: nowrap;
         }
 
-        .service-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
-            background: linear-gradient(45deg, #ff5252, #d32f2f);
+        .hidden-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+            border-color: rgba(255, 255, 255, 0.2);
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
 
-        .service-button.secondary {
-            background: linear-gradient(45deg, #4ecdc4, #44a08d);
-            box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
-        }
-
-        .service-button.secondary:hover {
-            background: linear-gradient(45deg, #26a69a, #00695c);
-            box-shadow: 0 8px 25px rgba(78, 205, 196, 0.4);
-        }
-
-        .service-button.tertiary {
-            background: linear-gradient(45deg, #ffd54f, #ffb300);
-            box-shadow: 0 4px 15px rgba(255, 213, 79, 0.3);
-        }
-
-        .service-button.tertiary:hover {
-            background: linear-gradient(45deg, #ffca28, #ff8f00);
-            box-shadow: 0 8px 25px rgba(255, 213, 79, 0.4);
-        }
-
-        .footer {
+        /* 主标题 */
+        .title {
             text-align: center;
-            padding-top: 40px;
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
-            animation: fadeInUp 1s ease-out 0.6s both;
+            margin-bottom: 40px;
         }
 
-        .footer p {
-            opacity: 0.8;
-            font-size: 1rem;
+        .title h1 {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 2.2rem;
+            font-weight: 300;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
         }
 
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            background: #4CAF50;
-            border-radius: 50%;
-            margin-right: 8px;
-            animation: pulse 2s infinite;
+        .title p {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.95rem;
+            font-weight: 400;
         }
 
+        /* 主控制面板 */
+        .control-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 30px 20px;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .main-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-height: 80px;
+        }
+
+        .control-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.6s;
+        }
+
+        .control-btn:hover::before {
+            left: 100%;
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 40px rgba(0, 0, 0, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn:active {
+            transform: translateY(0);
+        }
+
+        .control-btn .icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .control-btn .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .control-btn .name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .control-btn .url {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-family: 'Courier New', monospace;
+            line-height: 1.2;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-btn .url::before {
+            content: '点击访问服务';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: inherit;
+            transition: opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .control-btn:hover .url::before {
+            opacity: 0;
+        }
+
+        .control-btn .url .ip-address {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .control-btn:hover .url .ip-address {
+            opacity: 1;
+        }
+
+        /* 不同按钮的渐变色 */
+        .control-btn:nth-child(1) .icon {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .control-btn:nth-child(2) .icon {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .control-btn:nth-child(3) .icon {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        /* 移动端优化 */
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 10px;
+                max-width: 100%;
+            }
+
+            .control-panel {
+                padding: 20px 16px;
+                border-radius: 20px;
+            }
+
+            .main-controls {
+                gap: 12px;
+            }
+
+            .control-btn {
+                padding: 16px;
+                min-height: 70px;
+                gap: 12px;
+            }
+
+            .control-btn .icon {
+                width: 40px;
+                height: 40px;
+                font-size: 18px;
+            }
+
+            .control-btn .name {
+                font-size: 1rem;
+            }
+
+            .control-btn .url {
+                font-size: 0.8rem;
+            }
+
+            .title h1 {
+                font-size: 1.8rem;
+                letter-spacing: 1px;
+            }
+
+            .title p {
+                font-size: 0.9rem;
+            }
+
+            .title {
+                margin-bottom: 30px;
+            }
+
+            .hidden-controls {
+                top: 15px;
+                left: 15px;
+                gap: 6px;
+            }
+
+            .hidden-btn {
+                padding: 6px 8px;
+                font-size: 11px;
+                border-radius: 8px;
+            }
+        }
+
+        /* 超小屏幕优化 */
+        @media (max-width: 360px) {
+            .control-btn {
+                padding: 14px;
+                min-height: 65px;
+                gap: 10px;
+            }
+
+            .control-btn .icon {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+
+            .control-btn .name {
+                font-size: 0.95rem;
+            }
+
+            .control-btn .url {
+                font-size: 0.75rem;
+            }
+
+            .hidden-controls {
+                top: 10px;
+                left: 10px;
+                gap: 4px;
+            }
+
+            .hidden-btn {
+                padding: 5px 7px;
+                font-size: 10px;
+            }
+        }
+
+        /* 加载动画 */
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -160,101 +353,90 @@
             }
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+        .control-panel {
+            animation: fadeInUp 0.8s ease-out;
         }
 
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 2.5rem;
+        .control-btn {
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .control-btn:nth-child(1) { animation-delay: 0.1s; }
+        .control-btn:nth-child(2) { animation-delay: 0.2s; }
+        .control-btn:nth-child(3) { animation-delay: 0.3s; }
+
+        /* 触摸设备优化 */
+        @media (hover: none) and (pointer: coarse) {
+            .control-btn:hover {
+                transform: none;
             }
             
-            .header p {
-                font-size: 1.1rem;
+            .control-btn:active {
+                background: rgba(255, 255, 255, 0.15);
+                transform: scale(0.98);
+            }
+
+            .control-btn .url::before {
+                content: '点击查看地址';
             }
             
-            .services-grid {
-                grid-template-columns: 1fr;
-                gap: 20px;
+            .control-btn:active .url::before {
+                opacity: 0;
             }
             
-            .service-card {
-                padding: 30px 20px;
+            .control-btn:active .url .ip-address {
+                opacity: 1;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🚀 Franky's Digital Hub</h1>
-            <p>欢迎访问我的个人服务中心</p>
-        </div>
-
-        <div class="services-grid">
-            <div class="service-card">
-                <div class="service-icon">🤖</div>
-                <h3>ST服务</h3>
-                <p>SillyTavern - AI对话与角色扮演平台，体验智能对话的乐趣</p>
-                <a href="http://st.frankyany.dpdns.org:8000" class="service-button" target="_blank">
-                    <span class="status-indicator"></span>
-                    进入ST服务
-                </a>
-            </div>
-
-            <div class="service-card">
-                <div class="service-icon">⚡</div>
-                <h3>API服务</h3>
-                <p>提供各种API接口服务，支持开发者调用和集成</p>
-                <a href="http://api.frankyany.dpdns.org" class="service-button secondary" target="_blank">
-                    <span class="status-indicator"></span>
-                    访问API
-                </a>
-            </div>
-
-            <div class="service-card">
-                <div class="service-icon">⚙️</div>
-                <h3>管理后台</h3>
-                <p>系统管理和配置界面，监控服务状态和性能</p>
-                <a href="http://admin.frankyany.dpdns.org" class="service-button tertiary" target="_blank">
-                    <span class="status-indicator"></span>
-                    管理控制台
-                </a>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p>© 2025 Franky's Digital Hub | 服务器状态: <span style="color: #4CAF50;">正常运行</span></p>
-        </div>
+    <!-- 隐藏控制按钮 -->
+    <div class="hidden-controls">
+        <a href="http://117.72.73.115:6185" class="hidden-btn" target="_blank">astrbot</a>
+        <a href="http://117.72.73.115:3001" class="hidden-btn" target="_blank">napcat</a>
+        <a href="http://117.72.73.115:3002" class="hidden-btn" target="_blank">napcat2</a>
     </div>
 
-    <script>
-        // 添加一些交互效果
-        document.querySelectorAll('.service-card').forEach(card => {
-            card.addEventListener('mouseenter', function() {
-                this.style.transform = 'translateY(-10px) scale(1.02)';
-            });
-            
-            card.addEventListener('mouseleave', function() {
-                this.style.transform = 'translateY(0) scale(1)';
-            });
-        });
+    <div class="container">
+        <div class="title">
+            <h1>控制台</h1>
+            <p>系统管理与监控中心</p>
+        </div>
 
-        // 检查服务状态
-        async function checkServiceStatus() {
-            const services = [
-                { name: 'st', url: 'http://st.frankyany.dpdns.org:8000' },
-                { name: 'api', url: 'http://api.frankyany.dpdns.org' },
-                { name: 'admin', url: 'http://admin.frankyany.dpdns.org' }
-            ];
+        <div class="control-panel">
+            <div class="main-controls">
+                <a href="http://45.154.13.213:54321/" class="control-btn" target="_blank">
+                    <div class="icon">🌐</div>
+                    <div class="content">
+                        <div class="name">XUI-DogYun</div>
+                        <div class="url">
+                            <span class="ip-address">45.154.13.213:54321</span>
+                        </div>
+                    </div>
+                </a>
 
-            console.log('检查服务状态...');
-            // 这里可以添加实际的健康检查逻辑
-        }
+                <a href="http://54.199.152.143:2053" class="control-btn" target="_blank">
+                    <div class="icon">☁️</div>
+                    <div class="content">
+                        <div class="name">XUI-AWS</div>
+                        <div class="url">
+                            <span class="ip-address">54.199.152.143:2053</span>
+                        </div>
+                    </div>
+                </a>
 
-        // 页面加载完成后检查状态
-        window.addEventListener('load', checkServiceStatus);
-    </script>
+                <a href="http://117.72.73.115:5244" class="control-btn" target="_blank">
+                    <div class="icon">📁</div>
+                    <div class="content">
+                        <div class="name">Alis</div>
+                        <div class="url">
+                            <span class="ip-address">117.72.73.115:5244</span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
