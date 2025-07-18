@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>控制台界面</title>
+    <title>个人博客与控制台</title>
     <style>
+        /* General Styles */
         * {
             margin: 0;
             padding: 0;
@@ -20,60 +21,70 @@
             justify-content: center;
             padding: 20px;
             position: relative;
-        }
-
-        /* Background animation effect */
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background:
-                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.15) 0%, transparent 50%),
-                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.1) 0%, transparent 50%);
-            animation: backgroundShift 20s ease-in-out infinite;
-        }
-
-        @keyframes backgroundShift {
-            0%, 100% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(1.1) rotate(180deg); }
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .container {
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 480px;
+            max-width: 960px; /* Increased max-width for blog content */
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
 
-        /* Hidden control buttons area (top-left) */
-        .hidden-controls {
+        /* Top-right controls container (holds quick links and power buttons) */
+        .top-right-controls-container {
             position: fixed;
             top: 20px;
-            left: 20px;
-            display: flex;
-            gap: 8px;
+            right: 20px;
             z-index: 10;
-            flex-wrap: wrap;
+            display: flex;
+            flex-direction: row; /* Arrange children horizontally */
+            gap: 10px; /* Space between quick links button and power buttons group */
+            align-items: flex-start; /* Align items to the top */
+        }
+
+        /* Hidden controls (for quick links) */
+        .hidden-controls {
+            position: relative; /* Make it a positioning context for its children */
+            display: flex;
+            flex-direction: column; /* Stack toggle button and links group vertically */
+            gap: 8px; /* Space between toggle button and links group */
+            z-index: 10;
+            flex-wrap: nowrap; /* Prevent wrapping for the column layout */
+        }
+
+        .hidden-links-group {
+            position: absolute; /* Position relative to .hidden-controls */
+            top: 100%; /* Position below the toggle button */
+            left: 0;
+            display: flex; /* Will be toggled by JS */
+            flex-direction: column; /* Stack links vertically */
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.08); /* Background for the dropdown */
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            min-width: 120px; /* Ensure enough width for links */
         }
 
         .hidden-btn {
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 8px 12px;
+            border-radius: 8px; /* Slightly smaller border-radius for dropdown items */
+            padding: 6px 10px; /* Smaller padding for dropdown items */
             color: rgba(255, 255, 255, 0.7);
             text-decoration: none;
-            font-size: 12px;
+            font-size: 11px; /* Smaller font size for dropdown items */
             font-weight: 500;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            opacity: 0.6;
-            transform: scale(0.9);
+            opacity: 0.9;
             white-space: nowrap;
         }
 
@@ -82,9 +93,47 @@
             color: rgba(255, 255, 255, 0.9);
             border-color: rgba(255, 255, 255, 0.2);
             opacity: 1;
-            transform: scale(1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transform: scale(1.02); /* Slight scale on hover for dropdown items */
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
         }
+
+        /* Style for the new toggle button */
+        .toggle-btn {
+            background: rgba(150, 100, 255, 0.15); /* Purple transparent background */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(150, 100, 255, 0.3);
+            border-radius: 12px;
+            padding: 0; /* Removed padding for icon-only button */
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Center icon when no text */
+            gap: 8px;
+            white-space: nowrap;
+            width: 48px; /* Fixed width for icon-only button */
+            height: 48px; /* Fixed height for icon-only button */
+        }
+
+        .toggle-btn:hover {
+            background: rgba(150, 100, 255, 0.25);
+            border-color: rgba(150, 100, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .toggle-btn:active {
+            transform: translateY(0);
+        }
+
+        .toggle-btn .icon {
+            font-size: 18px;
+            line-height: 1;
+        }
+
 
         /* Main title */
         .title {
@@ -117,6 +166,8 @@
             box-shadow:
                 0 8px 32px rgba(0, 0, 0, 0.3),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            width: 100%; /* Ensure control panel takes full width of its container */
+            max-width: 480px; /* Keep control panel narrower */
         }
 
         .main-controls {
@@ -258,15 +309,11 @@
             font-size: 1.1rem;
         }
 
-        /* Top-right power button container */
-        .top-right-power-btn-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10;
-            display: flex; /* Use flexbox for vertical stacking */
-            flex-direction: column; /* Stack buttons vertically */
-            gap: 10px; /* Space between buttons */
+        /* Power buttons group (vertical stack) */
+        .power-buttons-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         /* Top-right power button style */
@@ -317,8 +364,156 @@
             border-color: rgba(255, 165, 0, 0.5);
         }
 
+        /* Blog Page Specific Styles */
+        .blog-page {
+            width: 100%;
+            max-width: 700px;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow:
+                0 8px 32px rgba(0, 0, 0, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        .blog-page h2 {
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 30px;
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+
+        .blog-post {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .blog-post:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .blog-post h3 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .blog-post p {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .blog-post .date {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.5);
+            margin-top: 5px;
+            display: block;
+        }
+
+        /* Go to Console Button on Blog Page */
+        .go-to-console-btn-container {
+            position: fixed; /* Changed to fixed for top-left corner */
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+
+        .go-to-console-btn {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 0; /* Removed padding for icon-only button */
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center; /* Center icon */
+            gap: 8px;
+            white-space: nowrap;
+            width: 48px; /* Fixed width for icon-only button */
+            height: 48px; /* Fixed height for icon-only button */
+        }
+
+        .go-to-console-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+            opacity: 0.9;
+        }
+
+        .go-to-console-btn .icon {
+            font-size: 18px;
+            line-height: 1;
+        }
+
+
+        /* Back to Blog Button on Control Panel */
+        .back-to-blog-btn-container {
+            position: fixed; /* Changed to fixed for top-left corner */
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+        }
+
+        .back-to-blog-btn {
+            background: rgba(100, 100, 255, 0.15); /* Blue transparent background */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 100, 255, 0.3);
+            border-radius: 12px;
+            padding: 10px 15px;
+            color: rgba(255, 255, 255, 0.9);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .back-to-blog-btn:hover {
+            background: rgba(100, 100, 255, 0.25);
+            border-color: rgba(100, 100, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .back-to-blog-btn:active {
+            transform: translateY(0);
+        }
+
+        .back-to-blog-btn .icon {
+            font-size: 18px;
+            line-height: 1;
+        }
 
         /* Mobile optimization */
+        @media (max-width: 768px) {
+            .blog-page {
+                padding: 30px 20px;
+            }
+            .blog-page h2 {
+                font-size: 2rem;
+            }
+            .blog-post h3 {
+                font-size: 1.5rem;
+            }
+            /* Adjust hidden-controls for smaller screens if needed, now it's inside top-right-controls-container */
+        }
+
         @media (max-width: 480px) {
             body {
                 padding: 10px;
@@ -332,6 +527,7 @@
             .control-panel {
                 padding: 20px 16px;
                 border-radius: 20px;
+                max-width: 100%; /* Full width on small screens */
             }
 
             .main-controls {
@@ -371,31 +567,60 @@
                 margin-bottom: 30px;
             }
 
-            .hidden-controls {
+            .top-right-controls-container {
                 top: 15px;
-                left: 15px;
+                right: 15px;
+                gap: 8px; /* Adjust gap for smaller screens */
+            }
+
+            .toggle-btn, .top-right-power-btn, .go-to-console-btn { /* Added go-to-console-btn */
+                padding: 0; /* Adjusted for mobile */
+                font-size: 12px;
+                border-radius: 10px;
+                width: 40px; /* Adjusted for mobile */
+                height: 40px; /* Adjusted for mobile */
+            }
+
+            .toggle-btn .icon, .top-right-power-btn .icon, .go-to-console-btn .icon { /* Added go-to-console-btn */
+                font-size: 16px;
+            }
+
+            .hidden-links-group {
+                padding: 8px;
                 gap: 6px;
             }
 
             .hidden-btn {
-                padding: 6px 8px;
-                font-size: 11px;
-                border-radius: 8px;
+                padding: 5px 8px;
+                font-size: 10px;
+                border-radius: 6px;
             }
 
-            .top-right-power-btn-container {
+            .blog-page {
+                padding: 20px 15px;
+            }
+            .blog-page h2 {
+                font-size: 1.8rem;
+                margin-bottom: 20px;
+            }
+            .blog-post h3 {
+                font-size: 1.3rem;
+            }
+            .blog-post p {
+                font-size: 0.9rem;
+            }
+            .go-to-console-btn-container {
                 top: 15px;
-                right: 15px;
+                left: 15px;
             }
-
-            .top-right-power-btn {
+            .back-to-blog-btn-container {
+                top: 15px;
+                left: 15px;
+            }
+            .back-to-blog-btn {
                 padding: 8px 12px;
                 font-size: 12px;
                 border-radius: 10px;
-            }
-
-            .top-right-power-btn .icon {
-                font-size: 16px;
             }
         }
 
@@ -421,23 +646,28 @@
                 font-size: 0.75rem;
             }
 
-            .hidden-controls {
-                top: 10px;
-                left: 10px;
-                gap: 4px;
-            }
-
-            .hidden-btn {
-                padding: 5px 7px;
-                font-size: 10px;
-            }
-
-            .top-right-power-btn-container {
+            .top-right-controls-container {
                 top: 10px;
                 right: 10px;
+                gap: 6px;
             }
 
-            .top-right-power-btn {
+            .toggle-btn, .top-right-power-btn, .go-to-console-btn { /* Added go-to-console-btn */
+                padding: 0;
+                font-size: 11px;
+                width: 36px; /* Adjusted for mobile */
+                height: 36px; /* Adjusted for mobile */
+            }
+
+            .go-to-console-btn-container {
+                top: 10px;
+                left: 10px;
+            }
+            .back-to-blog-btn-container {
+                top: 10px;
+                left: 10px;
+            }
+            .back-to-blog-btn {
                 padding: 6px 10px;
                 font-size: 11px;
             }
@@ -455,7 +685,7 @@
             }
         }
 
-        .control-panel {
+        .control-panel, .blog-page {
             animation: fadeInUp 0.8s ease-out;
         }
 
@@ -466,7 +696,6 @@
         .control-btn:nth-child(1) { animation-delay: 0.1s; }
         .control-btn:nth-child(2) { animation-delay: 0.2s; }
         .control-btn:nth-child(3) { animation-delay: 0.3s; }
-        /* Removed animation delay for power-on-btn as it's now an independent element */
 
 
         /* Touch device optimization */
@@ -500,30 +729,94 @@
                 background: rgba(46, 204, 113, 0.35);
                 transform: scale(0.98);
             }
+
+            .go-to-console-btn:hover {
+                transform: none;
+            }
+            .go-to-console-btn:active {
+                opacity: 0.8;
+                transform: scale(0.98);
+            }
+            .back-to-blog-btn:hover {
+                transform: none;
+            }
+            .back-to-blog-btn:active {
+                background: rgba(100, 100, 255, 0.35);
+                transform: scale(0.98);
+            }
+            .toggle-btn:hover {
+                transform: none;
+            }
+            .toggle-btn:active {
+                opacity: 0.8;
+                transform: scale(0.98);
+            }
         }
     </style>
 </head>
 <body>
-    <!-- Hidden control buttons (top-left) -->
-    <div class="hidden-controls">
-        <a href="http://117.72.73.115:6185" class="hidden-btn" target="_blank">astrbot</a>
-        <a href="http://117.72.73.115:3001" class="hidden-btn" target="_blank">napcat</a>
-        <a href="http://117.72.73.115:3002" class="hidden-btn" target="_blank">napcat2</a>
+    <!-- Message box -->
+    <div id="messageBox" class="message-box"></div>
+
+    <!-- Blog Page (Level 1) -->
+    <div id="blogPage" class="container blog-page">
+        <!-- Go to Console Button (top-left on blog page) -->
+        <div class="go-to-console-btn-container">
+            <button id="goToConsoleBtn" class="go-to-console-btn">
+                <div class="icon">⚙️</div>
+            </button>
+        </div>
+
+        <h2>我的个人博客</h2>
+        <div class="blog-post">
+            <h3>欢迎来到我的博客！</h3>
+            <p>这是我的第一个博客文章。在这里，我将分享一些关于技术、生活和我的思考。希望您喜欢！</p>
+            <span class="date">2025年7月18日</span>
+        </div>
+        <div class="blog-post">
+            <h3>关于狗云API控制台</h3>
+            <p>我最近正在使用狗云的API来管理我的服务器。为了方便操作，我创建了一个简单的控制台界面。</p>
+            <span class="date">2025年7月17日</span>
+        </div>
     </div>
 
-    <!-- Top-right power button container -->
-    <div class="top-right-power-btn-container">
-        <button id="powerOnDogYunBtn" class="top-right-power-btn">
-            <div class="icon">⚡</div>
-            <span>狗云开机</span>
-        </button>
-        <button id="suspendDogYunBtn" class="top-right-power-btn top-right-suspend-btn">
-            <div class="icon">⏸️</div>
-            <span>狗云暂停</span>
-        </button>
-    </div>
+    <!-- Control Panel (Level 2) -->
+    <div id="controlPanelPage" class="container" style="display: none;">
+        <!-- Back to Blog Button -->
+        <div class="back-to-blog-btn-container">
+            <button id="backToBlogBtn" class="back-to-blog-btn">
+                <div class="icon">⬅️</div>
+                <span>返回博客</span>
+            </button>
+        </div>
 
-    <div class="container">
+        <!-- Top-right controls container (for console only) -->
+        <div class="top-right-controls-container">
+            <!-- Hidden control buttons (top-left on console page, now part of top-right group) -->
+            <div class="hidden-controls">
+                <button id="toggleHiddenLinksBtn" class="toggle-btn">
+                    <div class="icon">🔗</div>
+                </button>
+                <div id="hiddenLinksGroup" style="display: none;">
+                    <a href="http://117.72.73.115:6185" class="hidden-btn" target="_blank">astrbot</a>
+                    <a href="http://117.72.73.115:3001" class="hidden-btn" target="_blank">napcat</a>
+                    <a href="http://117.72.73.115:3002" class="hidden-btn" target="_blank">napcat2</a>
+                </div>
+            </div>
+
+            <!-- Power buttons group (vertical stack) -->
+            <div class="power-buttons-group">
+                <button id="powerOnDogYunBtn" class="top-right-power-btn">
+                    <div class="icon">⚡</div>
+                    <span>狗云开机</span>
+                </button>
+                <button id="suspendDogYunBtn" class="top-right-power-btn top-right-suspend-btn">
+                    <div class="icon">⏸️</div>
+                    <span>狗云暂停</span>
+                </button>
+            </div>
+        </div>
+
         <div class="title">
             <h1>控制台</h1>
             <p>系统管理与监控中心</p>
@@ -551,7 +844,7 @@
                     </div>
                 </a>
 
-                <a href="http://117.72.73.115:5244" class="control-btn" target="_blank">
+                <a href="http://117.72.73.115:5244/" class="control-btn" target="_blank">
                     <div class="icon">📁</div>
                     <div class="content">
                         <div class="name">Alis</div>
@@ -563,9 +856,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Message box -->
-    <div id="messageBox" class="message-box"></div>
 
     <script>
         // Get message box element
@@ -582,14 +872,75 @@
             }
         }
 
-        // Get power on button
+        // Get page elements
+        const blogPage = document.getElementById('blogPage');
+        const controlPanelPage = document.getElementById('controlPanelPage');
+        const goToConsoleBtn = document.getElementById('goToConsoleBtn');
+        const backToBlogBtn = document.getElementById('backToBlogBtn');
+
+        // Get power on and suspend buttons (for console)
         const powerOnDogYunBtn = document.getElementById('powerOnDogYunBtn');
-        // Get suspend button
         const suspendDogYunBtn = document.getElementById('suspendDogYunBtn');
+
+        // Get elements for hidden links functionality
+        const toggleHiddenLinksBtn = document.getElementById('toggleHiddenLinksBtn');
+        const hiddenLinksGroup = document.getElementById('hiddenLinksGroup');
+
+        // Get the new top-right controls container
+        const topRightControlsContainer = document.querySelector('.top-right-controls-container');
 
         // Define server ID and API Key
         const serverId = 'CVM68672';
         const apiKey = 'UOLWANFPOPZIPBEJ8IIUADW2K6RKNMTF1OXQIJK20QELMXL8K0M0OKCEKTV8V2MO'; // Note: In a production environment, API Key should not be directly exposed on the frontend
+
+        // Function to show blog page and hide control panel
+        function showBlogPage() {
+            blogPage.style.display = 'flex';
+            controlPanelPage.style.display = 'none';
+            // Show the "Go to Console" button on blog page
+            document.querySelector('.go-to-console-btn-container').style.display = 'flex';
+            // Hide elements specific to the console page
+            topRightControlsContainer.style.display = 'none'; // Hide the entire top-right controls container
+            document.querySelector('.back-to-blog-btn-container').style.display = 'none';
+            hiddenLinksGroup.style.display = 'none'; // Ensure hidden links are collapsed
+        }
+
+        // Function to show control panel and hide blog page
+        function showControlPanel() {
+            blogPage.style.display = 'none';
+            controlPanelPage.style.display = 'flex';
+            // Hide the "Go to Console" button on blog page
+            document.querySelector('.go-to-console-btn-container').style.display = 'none';
+            // Show elements specific to the console page
+            topRightControlsContainer.style.display = 'flex'; // Show the entire top-right controls container
+            document.querySelector('.back-to-blog-btn-container').style.display = 'flex';
+            hiddenLinksGroup.style.display = 'none'; // Ensure hidden links are collapsed initially when entering console
+        }
+
+        // Initial page load: show blog page
+        showBlogPage();
+
+        // Event listeners for page navigation
+        goToConsoleBtn.addEventListener('click', showControlPanel);
+        backToBlogBtn.addEventListener('click', showBlogPage);
+
+        // Event listener for toggling hidden links
+        toggleHiddenLinksBtn.addEventListener('click', (event) => {
+            event.stopPropagation(); // Prevent click from propagating to document
+            if (hiddenLinksGroup.style.display === 'none') {
+                hiddenLinksGroup.style.display = 'flex'; // Show as flex to maintain layout
+            } else {
+                hiddenLinksGroup.style.display = 'none'; // Hide
+            }
+        });
+
+        // Close hidden links if clicked outside
+        document.addEventListener('click', (event) => {
+            if (hiddenLinksGroup.style.display === 'flex' && !hiddenLinksGroup.contains(event.target) && !toggleHiddenLinksBtn.contains(event.target)) {
+                hiddenLinksGroup.style.display = 'none';
+            }
+        });
+
 
         // Add click event listener for power on button
         powerOnDogYunBtn.addEventListener('click', async () => {
