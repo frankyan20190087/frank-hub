@@ -141,6 +141,8 @@
             padding: 15px;
             background-color: #fafafa;
             overflow-y: auto; /* 内容过多时可滚动 */
+            white-space: pre-wrap; /* 保持换行 */
+            word-wrap: break-word;
         }
 
         #scene-description {
@@ -355,10 +357,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- 全局变量和配置 (Global Variables & Configuration) ---
-    // !!! 重要: 请将下面的URL替换为您自己的n8n Webhook URL
-    // !!! IMPORTANT: Replace the URLs below with your own n8n Webhook URLs
-    const CREATE_WORLD_URL = 'http://117.72.73.115:5678/webhook/02ceea20-062f-4722-95b3-c8ded6f9d7c4';
-    const MAIN_GAME_URL = 'http://117.72.73.115:5678/webhook/83895b94-6f09-4e9d-831d-c01650e01eeb';
+    const CREATE_WORLD_URL = 'https://n8n.frankyany.dpdns.org/webhook/416b9faa-af93-40c7-a6ea-42202d4773c3';
+    const MAIN_GAME_URL = 'https://n8n.frankyany.dpdns.org/webhook/83895b94-6f09-4e9d-831d-c01650e01eeb';
     
     let currentWorldId = null;
 
@@ -385,47 +385,40 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- 核心功能函数 (Core Functions) ---
 
-    /**
-     * 显示指定的屏幕，隐藏其他屏幕
-     * @param {string} screenName - 'start', 'create', 或 'game'
-     */
+    function escapeHTML(str) {
+        if (typeof str !== 'string') {
+            return '';
+        }
+        return str.replace(/[&<>'"]/g, 
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    }
+
     function showScreen(screenName) {
         Object.values(screens).forEach(screen => screen.classList.add('hidden'));
         screens[screenName].classList.remove('hidden');
     }
     
-    /**
-     * 切换加载动画的显示状态
-     * @param {boolean} show - true为显示, false为隐藏
-     */
     function toggleLoader(show) {
         loader.classList.toggle('hidden', !show);
     }
 
-    /**
-     * 显示模态弹窗
-     * @param {string} title - 弹窗标题
-     * @param {string} htmlContent - 弹窗主体内容的HTML
-     */
     function showModal(title, htmlContent) {
         modal.title.textContent = title;
         modal.body.innerHTML = htmlContent;
         modal.element.classList.remove('hidden');
     }
 
-    /**
-     * 隐藏模态弹窗
-     */
     function hideModal() {
         modal.element.classList.add('hidden');
     }
 
-    /**
-     * 向n8n Webhook发送API请求
-     * @param {string} url - Webhook URL
-     * @param {object} body - 请求体
-     * @returns {Promise<object>} - 返回解析后的JSON响应
-     */
     async function apiCall(url, body) {
         toggleLoader(true);
         try {
@@ -435,76 +428,73 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(body),
             });
             if (!response.ok) {
-                throw new Error(`网络响应错误: ${response.statusText}`);
+                throw new Error(`网络响应错误: ${response.statusText} (${response.status})`);
             }
             return await response.json();
         } catch (error) {
             console.error('API调用失败:', error);
-            alert(`请求失败: ${error.message}`);
-            return null; // 返回null以便调用者处理
+            showModal('请求失败', `<p>${escapeHTML(error.message)}</p>`);
+            return null;
         } finally {
             toggleLoader(false);
         }
     }
     
-    /**
-     * 更新游戏主界面的叙事内容
-     * @param {string} htmlContent - 要追加到叙事日志的HTML内容
-     * @param {boolean} clear - 是否清空现有日志
-     */
-    function updateNarrative(htmlContent, clear = false) {
+    function updateNarrative(content, clear = false, isSafeHTML = false) {
         if (clear) {
             gameUI.narrativeLog.innerHTML = '';
         }
         const p = document.createElement('p');
-        p.innerHTML = htmlContent;
+        if (isSafeHTML) {
+            p.innerHTML = content;
+        } else {
+            p.textContent = content;
+        }
         gameUI.narrativeLog.appendChild(p);
-        // 自动滚动到底部
         gameUI.narrativeLog.scrollTop = gameUI.narrativeLog.scrollHeight;
     }
 
-    /**
-     * 初始化游戏界面
-     * @param {object} initialData - 包含初始场景和叙事的游戏数据
-     */
     function initializeGameUI(initialData) {
-        // 根据您的工作流返回的数据结构，这里可能需要调整
-        // 假设创世流返回`initial_scene_description`和`opening_narrative`
-        // 假设继续游戏流返回`scene_description`和`narrative_consequence`
         const scene = initialData.scene_description || initialData.initial_scene_description || "欢迎来到这个世界。";
         const narrative = initialData.narrative_consequence || initialData.opening_narrative || "你站在这里，思考着第一步。";
         
-        gameUI.sceneDescription.innerHTML = scene;
-        updateNarrative(narrative, true);
+        gameUI.sceneDescription.textContent = scene;
+        updateNarrative(narrative, true, false);
         showScreen('game');
     }
 
     // --- 事件监听器绑定 (Event Listener Bindings) ---
 
-    // 导航按钮
     document.getElementById('go-to-create-btn').addEventListener('click', () => showScreen('create'));
     document.getElementById('back-to-start-btn').addEventListener('click', () => showScreen('start'));
 
-    // 继续游戏表单
     document.getElementById('continue-game-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const worldId = document.getElementById('world-id-input').value.trim();
         if (!worldId) return;
 
         currentWorldId = worldId;
-        // 使用一个通用的动作（如“环顾四周”）来获取初始状态
-        // This action needs to be handled by your n8n workflow to return the initial scene.
         const responseData = await apiCall(MAIN_GAME_URL, { 
             world_id: currentWorldId, 
-            player_action: 'look around'
+            player_action: 'action_show_past'
         });
         
-        if (responseData && responseData.length > 0) {
-            initializeGameUI(responseData[0]); // n8n通常返回一个数组
+        let gameData = null;
+        if (responseData) {
+            if (Array.isArray(responseData) && responseData.length > 0) {
+                gameData = responseData[0];
+            } else if (typeof responseData === 'object' && !Array.isArray(responseData) && responseData.scene_description) {
+                gameData = responseData;
+            }
+        }
+
+        if (gameData) {
+            initializeGameUI(gameData);
+        } else {
+            showModal('加载失败', '<p>从服务器收到的数据格式不正确或为空，无法加载游戏。请检查n8n工作流的执行日志。</p>');
         }
     });
 
-    // 创建世界表单
     document.getElementById('create-world-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const payload = {
@@ -516,26 +506,23 @@ document.addEventListener('DOMContentLoaded', () => {
             user_preference: document.getElementById('user-preference').value,
         };
         
-        // 创世工作流应返回新世界的ID和初始数据
-        // Your "create world" workflow must return the new world_id.
         const responseData = await apiCall(CREATE_WORLD_URL, payload);
         
-        if (responseData && responseData.world_id) {
-            currentWorldId = responseData.world_id;
-            initializeGameUI(responseData);
+        if (responseData && Array.isArray(responseData) && responseData.length > 0 && responseData[0].world_id) {
+            const result = responseData[0];
+            currentWorldId = result.world_id;
+            initializeGameUI(result);
         } else {
-             alert('创建世界失败，未从服务器获取到有效的世界ID。请检查n8n工作流的最终输出。');
+             showModal('创建失败', '<p>未从服务器获取到有效的世界ID或返回格式不正确。请检查n8n工作流的最终输出。</p>');
         }
     });
 
-    // 游戏内动作表单
     document.getElementById('action-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const actionText = gameUI.actionInput.value.trim();
         if (!actionText) return;
 
-        // 在日志中回显玩家的输入
-        updateNarrative(`<strong>> ${actionText}</strong>`);
+        updateNarrative(`<strong>> ${escapeHTML(actionText)}</strong>`, false, true);
         gameUI.actionInput.value = '';
 
         const responseData = await apiCall(MAIN_GAME_URL, {
@@ -545,13 +532,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (responseData && responseData.length > 0) {
             const result = responseData[0];
-            // 如果有新的场景描述，则更新
-            if (result.scene_description) {
-                gameUI.sceneDescription.innerHTML = result.scene_description;
-            }
-            // 更新叙事
-            if (result.narrative_consequence) {
-                updateNarrative(result.narrative_consequence);
+            
+            // [NEW] 增加对行动有效性的判断
+            if (result.is_action_valid === false) {
+                // 如果行动无效，显示弹窗，并更新叙事日志以提供上下文
+                showModal('行动失败', '<p>行动违反当前世界法则，不予执行。</p>');
+                if (result.outcome_summary) {
+                    updateNarrative(result.outcome_summary, false, false);
+                }
+            } else {
+                // 如果行动有效，则执行正常的界面更新
+                if (result.scene_description) {
+                    gameUI.sceneDescription.textContent = result.scene_description;
+                }
+                if (result.narrative_consequence) {
+                    updateNarrative(result.narrative_consequence, false, false);
+                }
             }
         }
     });
@@ -563,25 +559,22 @@ document.addEventListener('DOMContentLoaded', () => {
             player_action: 'action_show_map',
         });
         
-        // 检查返回的是否为有效数组
         if (responseData && Array.isArray(responseData) && responseData.length > 0) {
             try {
-                const locationData = responseData[0]; // 假设返回数组的第一个元素是当前位置信息
+                const locationData = responseData[0];
                 const locationName = locationData.name;
-                
-                // exits是JSON字符串，需要解析
-                const exitsObject = JSON.parse(locationData.exits);
+                const exitsObject = locationData.exits; 
                 
                 let exitsHtml = '';
-                // 遍历解析后的出口对象，生成列表
-                for (const [direction, destination] of Object.entries(exitsObject)) {
-                    exitsHtml += `<li>${direction}: ${destination}</li>`;
+                if (exitsObject && typeof exitsObject === 'object') {
+                    for (const [direction, destination] of Object.entries(exitsObject)) {
+                        exitsHtml += `<li>${escapeHTML(direction)}: ${escapeHTML(String(destination))}</li>`;
+                    }
                 }
 
-                // 构建最终的HTML内容
                 let html = `
                     <ul>
-                        <li><strong>当前位置:</strong> ${locationName}</li>
+                        <li><strong>当前位置:</strong> ${escapeHTML(locationName)}</li>
                     </ul>
                     <strong>出口:</strong>
                     <ul>
@@ -609,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let html = '<ul>';
             if (items.length > 0) {
                 items.forEach(item => {
-                    html += `<li><strong>${item.name}</strong><br><small>${item.description}</small></li>`;
+                    html += `<li><strong>${escapeHTML(item.name)}</strong><br><small>${escapeHTML(item.description)}</small></li>`;
                 });
             } else {
                 html += '<li>你的行囊空空如也。</li>';
@@ -621,22 +614,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     
-    // **[MODIFIED]** 日志按钮功能实现
     document.getElementById('logs-btn').addEventListener('click', async () => {
         const responseData = await apiCall(MAIN_GAME_URL, {
             world_id: currentWorldId,
             player_action: 'action_show_logs'
         });
 
-        // 检查返回的数据结构是否符合预期
         if (responseData && Array.isArray(responseData) && responseData.length > 0 && responseData[0].log && Array.isArray(responseData[0].log)) {
             const logs = responseData[0].log;
             let html = '<ul>';
 
             if (logs.length > 0) {
-                // 遍历日志数组，创建列表项
                 logs.forEach(logEntry => {
-                    html += `<li><strong>${logEntry.name}</strong><br><small>${logEntry.property_log_decription}</small></li>`;
+                    html += `<li><strong>${escapeHTML(logEntry.log_time)}</strong><br><small>${escapeHTML(logEntry.log_description)}</small></li>`;
                 });
             } else {
                 html += '<li>暂无日志记录。</li>';
@@ -644,7 +634,6 @@ document.addEventListener('DOMContentLoaded', () => {
             html += '</ul>';
             showModal('游戏日志', html);
         } else {
-            // 如果数据格式不符或为空，显示错误提示
             showModal('游戏日志', '<p>无法获取日志信息或格式不正确。</p>');
         }
     });
@@ -652,7 +641,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // 模态弹窗关闭按钮
     modal.closeBtn.addEventListener('click', hideModal);
     modal.element.addEventListener('click', (e) => {
-        // 点击背景关闭
         if (e.target === modal.element) {
             hideModal();
         }
