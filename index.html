@@ -319,6 +319,8 @@
     <div id="game-screen" class="screen hidden">
         <!-- 左侧功能按钮 (Sidebar) -->
         <aside id="game-sidebar">
+            <!-- [NEW] 新增“查探环境”按钮 -->
+            <button id="investigate-btn" class="btn">查探环境</button>
             <button id="map-btn" class="btn">地图</button>
             <button id="items-btn" class="btn">物品</button>
             <button id="logs-btn" class="btn">日志</button>
@@ -357,8 +359,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- 全局变量和配置 (Global Variables & Configuration) ---
-    const CREATE_WORLD_URL = 'https://n8n.frankyany.dpdns.org/webhook/416b9faa-af93-40c7-a6ea-42202d4773c3';
-    const MAIN_GAME_URL = 'https://n8n.frankyany.dpdns.org/webhook/83895b94-6f09-4e9d-831d-c01650e01eeb';
+    const CREATE_WORLD_URL = 'https://n8n.frankyany.dpdns.org/webhook/create-world-v2';
+    const MAIN_GAME_URL = 'https://n8n.frankyany.dpdns.org/webhook/fa75edad-e99a-402e-8466-8337a4fd41d9';
     
     let currentWorldId = null;
 
@@ -455,7 +457,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initializeGameUI(initialData) {
-        const scene = initialData.scene_description || initialData.initial_scene_description || "欢迎来到这个世界。";
+        // 处理scene_description为null的情况
+        let scene = initialData.scene_description || initialData.initial_scene_description;
+        if (scene === null || scene === undefined) {
+            scene = "欢迎来到这个世界。";
+        }
+        
         const narrative = initialData.narrative_consequence || initialData.opening_narrative || "你站在这里，思考着第一步。";
         
         gameUI.sceneDescription.textContent = scene;
@@ -481,14 +488,27 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let gameData = null;
         if (responseData) {
+            // [COMPATIBILITY FIX] 兼容处理：无论后端返回的是数组还是对象，都提取出核心数据对象
             if (Array.isArray(responseData) && responseData.length > 0) {
                 gameData = responseData[0];
-            } else if (typeof responseData === 'object' && !Array.isArray(responseData) && responseData.scene_description) {
-                gameData = responseData;
+            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
+                gameData = responseData; // 直接使用对象
             }
         }
 
         if (gameData) {
+            // 检查错误响应
+            if (gameData.error) {
+                showModal('加载失败', `<p>错误: ${escapeHTML(gameData.message || gameData.error)}</p>`);
+                return;
+            }
+            
+            // 检查必要的数据字段
+            if (!gameData.scene_description && !gameData.narrative_consequence) {
+                showModal('加载失败', '<p>服务器返回的数据缺少必要的场景信息。</p>');
+                return;
+            }
+            
             initializeGameUI(gameData);
         } else {
             showModal('加载失败', '<p>从服务器收到的数据格式不正确或为空，无法加载游戏。请检查n8n工作流的执行日志。</p>');
@@ -508,10 +528,19 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const responseData = await apiCall(CREATE_WORLD_URL, payload);
         
-        if (responseData && Array.isArray(responseData) && responseData.length > 0 && responseData[0].world_id) {
-            const result = responseData[0];
-            currentWorldId = result.world_id;
-            initializeGameUI(result);
+        let creationData = null;
+        if (responseData) {
+            // [COMPATIBILITY FIX] 兼容创世工作流返回数组或对象
+            if (Array.isArray(responseData) && responseData.length > 0) {
+                creationData = responseData[0];
+            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
+                creationData = responseData;
+            }
+        }
+
+        if (creationData && creationData.world_id) {
+            currentWorldId = creationData.world_id;
+            initializeGameUI(creationData);
         } else {
              showModal('创建失败', '<p>未从服务器获取到有效的世界ID或返回格式不正确。请检查n8n工作流的最终输出。</p>');
         }
@@ -530,9 +559,17 @@ document.addEventListener('DOMContentLoaded', () => {
             player_action: actionText,
         });
 
-        if (responseData && responseData.length > 0) {
-            const result = responseData[0];
-            
+        let result = null;
+        if (responseData) {
+            // [COMPATIBILITY FIX] 兼容主流程返回数组或对象
+            if (Array.isArray(responseData) && responseData.length > 0) {
+                result = responseData[0];
+            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
+                result = responseData;
+            }
+        }
+
+        if (result) {
             // [NEW] 增加对行动有效性的判断
             if (result.is_action_valid === false) {
                 // 如果行动无效，显示弹窗，并更新叙事日志以提供上下文
@@ -542,13 +579,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 // 如果行动有效，则执行正常的界面更新
-                if (result.scene_description) {
+                if (result.scene_description && result.scene_description !== null) {
                     gameUI.sceneDescription.textContent = result.scene_description;
                 }
                 if (result.narrative_consequence) {
                     updateNarrative(result.narrative_consequence, false, false);
                 }
             }
+        }
+    });
+
+    // --- [NEW] “查探环境”按钮事件监听器 ---
+    document.getElementById('investigate-btn').addEventListener('click', async () => {
+        if (!currentWorldId) return;
+
+        // 在日志中显示玩家的动作
+        updateNarrative(`<strong>> 你仔细查探周围的环境...</strong>`, false, true);
+
+        const responseData = await apiCall(MAIN_GAME_URL, {
+            world_id: currentWorldId,
+            player_action: 'action_show_around', // 发送指定的action
+        });
+
+        let result = null;
+        if (responseData) {
+            // 兼容处理返回的数组或对象
+            if (Array.isArray(responseData) && responseData.length > 0) {
+                result = responseData[0];
+            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
+                result = responseData;
+            }
+        }
+
+        if (result && result.scene_description) {
+            // 将查探结果更新到叙事日志中
+            updateNarrative(result.scene_description, false, false);
+        } else {
+            // 如果没有收到预期的描述，也给出反馈
+            updateNarrative("你仔细观察了四周，但没有发现什么特别的东西。", false, false);
         }
     });
 
@@ -559,14 +627,28 @@ document.addEventListener('DOMContentLoaded', () => {
             player_action: 'action_show_map',
         });
         
-        if (responseData && Array.isArray(responseData) && responseData.length > 0) {
+        if (responseData) {
             try {
-                const locationData = responseData[0];
-                const locationName = locationData.name;
-                const exitsObject = locationData.exits; 
+                // [COMPATIBILITY FIX] 兼容处理：无论返回的是数组还是对象，都提取出核心数据
+                const locationData = Array.isArray(responseData) ? responseData[0] : responseData;
+                if (!locationData || Object.keys(locationData).length === 0) {
+                    showModal('地图', '<p>无法获取地图信息或信息为空。</p>');
+                    return;
+                }
+
+                // 检查错误响应
+                if (locationData.error) {
+                    showModal('地图', `<p>错误: ${escapeHTML(locationData.message || locationData.error)}</p>`);
+                    return;
+                }
+                
+                // 根据标准格式读取数据
+                const locationName = locationData.location_name || locationData.name || "未知位置";
+                const exitsObject = locationData.location_exits || locationData.exits || {}; 
+                const locationDescription = locationData.location_description || "";
                 
                 let exitsHtml = '';
-                if (exitsObject && typeof exitsObject === 'object') {
+                if (exitsObject && typeof exitsObject === 'object' && Object.keys(exitsObject).length > 0) {
                     for (const [direction, destination] of Object.entries(exitsObject)) {
                         exitsHtml += `<li>${escapeHTML(direction)}: ${escapeHTML(String(destination))}</li>`;
                     }
@@ -575,8 +657,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 let html = `
                     <ul>
                         <li><strong>当前位置:</strong> ${escapeHTML(locationName)}</li>
-                    </ul>
-                    <strong>出口:</strong>
+                    </ul>`;
+                
+                if (locationDescription) {
+                    html += `<p><strong>描述:</strong> ${escapeHTML(locationDescription)}</p>`;
+                }
+                
+                html += `<strong>出口:</strong>
                     <ul>
                         ${exitsHtml || '<li>此地无路可走。</li>'}
                     </ul>`;
@@ -597,20 +684,87 @@ document.addEventListener('DOMContentLoaded', () => {
             world_id: currentWorldId,
             player_action: 'action_show_items',
         });
-        if (responseData && responseData.length > 0 && responseData[0].display_type === 'items_list') {
-            const items = responseData[0].content;
-            let html = '<ul>';
-            if (items.length > 0) {
-                items.forEach(item => {
-                    html += `<li><strong>${escapeHTML(item.name)}</strong><br><small>${escapeHTML(item.description)}</small></li>`;
-                });
-            } else {
-                html += '<li>你的行囊空空如也。</li>';
+        
+        if (responseData) {
+            try {
+                const dataObject = Array.isArray(responseData) ? responseData[0] : responseData;
+                
+                if (!dataObject || Object.keys(dataObject).length === 0) {
+                    showModal('我的物品', '<p>无法获取物品信息或信息为空。</p>');
+                    return;
+                }
+                
+                if (dataObject.error) {
+                    showModal('我的物品', `<p>错误: ${escapeHTML(dataObject.message || dataObject.error)}</p>`);
+                    return;
+                }
+                
+                // [ULTRA-ROBUST FIX V2] 最终修复方案
+                let items = []; // 默认设为空数组，确保安全
+                
+                if (dataObject.display_type === 'item_list' && Array.isArray(dataObject.content)) {
+                    // 1. 处理标准格式
+                    items = dataObject.content;
+                } else if (dataObject.hasOwnProperty('player_inventory')) {
+                    // 2. 处理旧格式
+                    const inventoryData = dataObject.player_inventory;
+                    if (Array.isArray(inventoryData)) {
+                        // 2a. 如果已经是数组，直接使用
+                        items = inventoryData;
+                    } else if (typeof inventoryData === 'string') {
+                        // 2b. 如果是字符串，尝试解析
+                        try {
+                            items = JSON.parse(inventoryData);
+                        } catch (e) {
+                            console.error("无法解析物品清单字符串:", inventoryData);
+                            items = []; // 解析失败则视为空
+                        }
+                    }
+                    // 2c. 如果解析后不是数组(例如解析自"null"), 确保它变为空数组
+                    if (!Array.isArray(items)) {
+                        items = [];
+                    }
+                } else {
+                    // 3. 如果两种格式都不匹配，则显示错误并退出
+                    showModal('我的物品', '<p>服务器返回的物品数据格式无法识别。</p>');
+                    return;
+                }
+
+                // --- 渲染逻辑 ---
+                let html = '<ul>';
+                if (items.length > 0) {
+                    items.forEach(item => {
+                        const itemName = item.item_name || '未知物品';
+                        const itemDesc = item.item_description || '无描述';
+                        const itemProps = item.item_properties;
+                        
+                        html += `<li><strong>${escapeHTML(itemName)}</strong><br><small>${escapeHTML(itemDesc)}</small>`;
+                        
+                        if (itemProps && typeof itemProps === 'object') {
+                            html += '<br><small style="color: #666;">';
+                            const props = [];
+                            if (itemProps.durability !== undefined) props.push(`耐久: ${itemProps.durability}`);
+                            if (itemProps.weight !== undefined) props.push(`重量: ${itemProps.weight}`);
+                            if (itemProps.value !== undefined) props.push(`价值: ${itemProps.value}`);
+                            if (itemProps.rarity !== undefined) props.push(`稀有度: ${itemProps.rarity}`);
+                            html += props.join(' | ');
+                            html += '</small>';
+                        }
+                        
+                        html += '</li>';
+                    });
+                } else {
+                    html += '<li>你的行囊空空如也。</li>';
+                }
+                html += '</ul>';
+                showModal('我的物品', html);
+
+            } catch (e) {
+                console.error("解析物品数据时出错:", e);
+                showModal('我的物品', '<p>处理物品数据时发生了一个内部错误。</p>');
             }
-            html += '</ul>';
-            showModal('我的物品', html);
         } else {
-            showModal('我的物品', '<p>无法获取物品信息。</p>');
+            showModal('我的物品', '<p>无法获取物品信息或信息为空。</p>');
         }
     });
     
@@ -620,21 +774,43 @@ document.addEventListener('DOMContentLoaded', () => {
             player_action: 'action_show_logs'
         });
 
-        if (responseData && Array.isArray(responseData) && responseData.length > 0 && responseData[0].log && Array.isArray(responseData[0].log)) {
-            const logs = responseData[0].log;
-            let html = '<ul>';
-
-            if (logs.length > 0) {
-                logs.forEach(logEntry => {
-                    html += `<li><strong>${escapeHTML(logEntry.log_time)}</strong><br><small>${escapeHTML(logEntry.log_description)}</small></li>`;
-                });
-            } else {
-                html += '<li>暂无日志记录。</li>';
+        if (responseData) {
+            // [COMPATIBILITY FIX] 兼容处理：无论返回的是数组还是对象，都提取出核心数据
+            const logsData = Array.isArray(responseData) ? responseData[0] : responseData;
+             if (!logsData || Object.keys(logsData).length === 0) {
+                showModal('游戏日志', '<p>无法获取日志信息或信息为空。</p>');
+                return;
             }
-            html += '</ul>';
-            showModal('游戏日志', html);
+
+            // 检查错误响应
+            if (logsData.error) {
+                showModal('游戏日志', `<p>错误: ${escapeHTML(logsData.message || logsData.error)}</p>`);
+                return;
+            }
+            
+            // 根据标准格式读取数据
+            if (logsData.all_logs_array && Array.isArray(logsData.all_logs_array)) {
+                const logs = logsData.all_logs_array;
+                let html = '<ul>';
+
+                if (logs.length > 0) {
+                    logs.forEach(logEntry => {
+                        const logTime = logEntry.log_time || '未知时间';
+                        const logType = logEntry.log_type || '未知类型';
+                        const logDesc = logEntry.log_description || '无描述';
+                        
+                        html += `<li><strong>${escapeHTML(logTime)}</strong> (${escapeHTML(logType)})<br><small>${escapeHTML(logDesc)}</small></li>`;
+                    });
+                } else {
+                    html += '<li>暂无日志记录。</li>';
+                }
+                html += '</ul>';
+                showModal('游戏日志', html);
+            } else {
+                showModal('游戏日志', '<p>服务器返回的日志数据格式不正确。</p>');
+            }
         } else {
-            showModal('游戏日志', '<p>无法获取日志信息或格式不正确。</p>');
+            showModal('游戏日志', '<p>无法获取日志信息或信息为空。</p>');
         }
     });
 
