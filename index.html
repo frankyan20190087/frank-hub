@@ -1,829 +1,516 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>文字冒险游戏</title>
-    <style>
-        /* --- 基础与全局样式 --- */
-        :root {
-            --bg-color: #f0f2f5;
-            --container-bg: #ffffff;
-            --primary-text: #333;
-            --secondary-text: #666;
-            --border-color: #e0e0e0;
-            --accent-color: #007bff;
-            --accent-hover: #0056b3;
-            --danger-color: #dc3545;
-            --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        }
-
-        body {
-            font-family: var(--font-family);
-            background-color: var(--bg-color);
-            color: var(--primary-text);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .screen {
-            width: 100%;
-            max-width: 1000px;
-            background: var(--container-bg);
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            padding: 30px;
-            box-sizing: border-box;
-        }
-
-        h1, h2 {
-            text-align: center;
-            color: var(--primary-text);
-        }
-
-        /* --- 表单与按钮样式 --- */
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 12px;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-
-        textarea.form-control {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 12px 24px;
-            border-radius: 4px;
-            border: none;
-            background-color: var(--accent-color);
-            color: white;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            text-align: center;
-            transition: background-color 0.2s;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .btn:hover {
-            background-color: var(--accent-hover);
-        }
-
-        .btn-secondary {
-            background-color: #6c757d;
-        }
-        .btn-secondary:hover {
-            background-color: #5a6268;
-        }
-
-        .btn-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
-        /* --- 游戏主界面布局 --- */
-        #game-screen {
-            display: flex;
-            gap: 20px;
-            height: 85vh; /* 视口高度的85% */
-        }
-
-        #game-sidebar {
-            flex: 0 0 120px; /* 不伸缩，不收缩，基础宽度120px */
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        #game-sidebar .btn {
-            width: 100%;
-        }
-
-        #game-main-content {
-            flex-grow: 1; /* 占据剩余所有空间 */
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            overflow: hidden; /* 防止子元素溢出 */
-        }
-
-        #scene-description, #narrative-log {
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            padding: 15px;
-            background-color: #fafafa;
-            overflow-y: auto; /* 内容过多时可滚动 */
-            white-space: pre-wrap; /* 保持换行 */
-            word-wrap: break-word;
-        }
-
-        #scene-description {
-            flex-shrink: 0; /* 高度不收缩 */
-            max-height: 25%;
-        }
-
-        #narrative-log {
-            flex-grow: 1; /* 占据剩余主要空间 */
-        }
-        #narrative-log p {
-            margin: 0 0 10px 0;
-            line-height: 1.6;
-        }
-        #narrative-log p:last-child {
-            margin-bottom: 0;
-        }
-
-
-        #action-form {
-            display: flex;
-            gap: 10px;
-            flex-shrink: 0; /* 高度不收缩 */
-        }
-
-        #action-input {
-            flex-grow: 1;
-        }
-
-        #action-confirm {
-            flex-shrink: 0;
-            width: auto;
-        }
-        
-        /* --- 加载与模态弹窗 --- */
-        .overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
-        
-        /* 加载动画 */
-        .loader-spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid var(--accent-color);
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* 模态弹窗 */
-        #modal-content {
-            background: var(--container-bg);
-            padding: 30px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 600px;
-            max-height: 80vh;
-            overflow-y: auto;
-            position: relative;
-        }
-
-        #modal-close {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #aaa;
-            cursor: pointer;
-            border: none;
-            background: none;
-        }
-        #modal-close:hover {
-            color: #000;
-        }
-        #modal-body ul {
-            list-style: none;
-            padding: 0;
-        }
-        #modal-body li {
-            padding: 10px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        #modal-body li:last-child {
-            border-bottom: none;
-        }
-        #modal-body strong {
-            color: var(--accent-color);
-        }
-
-        /* --- 响应式设计 (移动端) --- */
-        @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            .screen {
-                padding: 20px;
-            }
-            #game-screen {
-                flex-direction: column;
-                height: 90vh;
-            }
-            #game-sidebar {
-                flex-direction: row;
-                flex: 0 0 auto; /* 恢复自动高度 */
-                justify-content: space-around;
-            }
-            #game-sidebar .btn {
-                padding: 10px;
-                font-size: 0.9rem;
-            }
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>文字冒险</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{
+      --bg-dark:#1c1f26; --panel-dark:#2b3039; --border-dark:#3a3f48;
+      --text-primary:#e4e6eb; --text-secondary:#c0c3c8; --accent:#5c6fb1;
+    }
+    body{ background:var(--bg-dark); color:var(--text-primary); font-family: Inter, system-ui, Arial, sans-serif; }
+    /* PC端字体整体调大一号 */
+    @media (min-width: 768px){ body{ font-size: 18px; } }
+    .panel{ background:var(--panel-dark); border:1px solid var(--border-dark); border-radius:.5rem; padding:.75rem; box-sizing:border-box; }
+    .btn{ background:var(--border-dark); border-radius:.375rem; padding:.5rem .75rem; transition:all .2s; }
+    .btn:hover{ background:var(--accent); color:white; }
+    .tab{ padding:.25rem .75rem; border-bottom:2px solid transparent; color:var(--text-secondary); cursor:pointer; }
+    .tab-active{ border-color:var(--accent); color:white; font-weight:700; }
+    .divider{ border-top:1px solid var(--border-dark); }
+    /* 右侧栏固定标签+主体滚动（PC端） */
+    @media (min-width: 768px){
+      #sidebar{ display:flex; flex-direction:column; }
+      #sidebar .tab-header{ flex:0 0 auto; }
+      #sidebar-content{ flex:1 1 auto; overflow-y:auto; }
+    }
+  </style>
 </head>
 <body>
-
-    <!-- ======== 开始界面 (Start Screen) ======== -->
-    <div id="start-screen" class="screen">
-        <h1>文字冒险</h1>
-        <form id="continue-game-form">
-            <div class="form-group">
-                <label for="world-id-input">输入世界ID继续游戏</label>
-                <input type="text" id="world-id-input" class="form-control" placeholder="粘贴您的 world_id" required>
-            </div>
-            <button type="submit" class="btn">进入世界</button>
-        </form>
-        <div class="btn-container">
-            <hr>
-            <button id="go-to-create-btn" class="btn btn-secondary">或者，创建一个新世界</button>
+  <!-- 主菜单 -->
+  <section id="home" class="min-h-screen flex items-center justify-center">
+    <div class="w-full max-w-xl panel">
+      <h1 class="text-2xl md:text-3xl mb-6">文字冒险 - 主菜单</h1>
+      <div class="flex flex-col gap-4">
+        <button class="btn" id="goto-create">创建世界</button>
+        <div class="flex gap-2 flex-col sm:flex-row">
+          <input id="home-player-id" placeholder="输入 player_id 用于加载世界" class="flex-grow px-3 py-2 bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] rounded" />
+          <button class="btn" id="home-load">加载世界</button>
         </div>
+        <button class="btn" id="exit-btn">离开游戏</button>
+        <div class="text-sm text-[color:var(--text-secondary)]" id="home-status"></div>
+      </div>
     </div>
+  </section>
 
-    <!-- ======== 创建世界界面 (Create World Screen) ======== -->
-    <div id="create-world-screen" class="screen hidden">
-        <h2>创建新世界</h2>
-        <form id="create-world-form">
-            <div class="form-group">
-                <label for="protagonist-name">主角姓名</label>
-                <input type="text" id="protagonist-name" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="protagonist-gender">性别</label>
-                <input type="text" id="protagonist-gender" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="protagonist-age">年龄</label>
-                <input type="number" id="protagonist-age" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label for="user-preference">用一句话描述你想要的世界</label>
-                <textarea id="user-preference" class="form-control" placeholder="例如：一个被巨龙阴影笼罩的、摇摇欲坠的王国" required></textarea>
-            </div>
-            <div class="btn-container">
-                <button type="submit" class="btn">开始创世</button>
-                <button type="button" id="back-to-start-btn" class="btn btn-secondary">返回</button>
-            </div>
-        </form>
-    </div>
-
-    <!-- ======== 游戏主界面 (Game Screen) ======== -->
-    <div id="game-screen" class="screen hidden">
-        <!-- 左侧功能按钮 (Sidebar) -->
-        <aside id="game-sidebar">
-            <!-- [NEW] 新增“查探环境”按钮 -->
-            <button id="investigate-btn" class="btn">查探环境</button>
-            <button id="map-btn" class="btn">地图</button>
-            <button id="items-btn" class="btn">物品</button>
-            <button id="logs-btn" class="btn">日志</button>
-        </aside>
-        
-        <!-- 右侧主内容区 (Main Content) -->
-        <main id="game-main-content">
-            <div id="scene-description">
-                <!-- 场景描述将在这里动态加载 -->
-            </div>
-            <div id="narrative-log">
-                <!-- 叙事后果将在这里动态追加 -->
-            </div>
-            <form id="action-form">
-                <input type="text" id="action-input" class="form-control" placeholder="接下来你打算做什么？" autocomplete="off">
-                <button type="submit" id="action-confirm" class="btn">确认</button>
-            </form>
-        </main>
-    </div>
-
-    <!-- ======== 加载动画覆盖层 (Loader Overlay) ======== -->
-    <div id="loader" class="overlay hidden">
-        <div class="loader-spinner"></div>
-    </div>
-
-    <!-- ======== 模态弹窗 (Modal) ======== -->
-    <div id="modal" class="overlay hidden">
-        <div id="modal-content">
-            <button id="modal-close">&times;</button>
-            <h2 id="modal-title"></h2>
-            <div id="modal-body"></div>
+  <!-- 创世页面 -->
+  <section id="create" class="hidden min-h-screen p-4 md:p-6">
+    <div class="max-w-3xl mx-auto panel">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-2xl">创世</h2>
+        <button class="btn" id="back-home">返回</button>
+      </div>
+      <form id="create-form" class="flex flex-col gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block mb-1">主角姓名</label>
+            <input id="cg-name" class="w-full p-2 rounded bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)]" />
+          </div>
+          <div>
+            <label class="block mb-1">性别</label>
+            <input id="cg-gender" class="w-full p-2 rounded bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)]" />
+          </div>
+          <div>
+            <label class="block mb-1">年龄</label>
+            <input id="cg-age" type="number" class="w-full p-2 rounded bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)]" />
+          </div>
+          <div>
+            <label class="block mb-1">主角背景故事</label>
+            <input id="cg-background" class="w-full p-2 rounded bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)]" />
+          </div>
         </div>
+        <div>
+          <label class="block mb-1">世界概念</label>
+          <textarea id="cg-world" class="w-full p-2 rounded bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] min-h-[100px]"></textarea>
+        </div>
+        <div>
+          <label class="block mb-1">禁止元素（每行一个）</label>
+          <textarea id="cg-forbidden" class="w-full p-2 rounded bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] min-h-[80px]"></textarea>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn" id="cancel-create">取消</button>
+          <button type="submit" class="btn" id="submit-create">确认创建</button>
+        </div>
+        <div id="create-status" class="text-sm text-[color:var(--text-secondary)]"></div>
+      </form>
     </div>
+  </section>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
+  <!-- 游戏页面 -->
+  <section id="game" class="hidden min-h-screen p-4 md:p-6">
+    <div id="game-stage" class="game-stage flex justify-center">
+    <div id="stage-inner" class="flex flex-col md:flex-row md:items-stretch gap-4 w-full md:w-[90%]" style="height:70vh;">
+      <!-- 左列 -->
+      <div id="left-col" class="flex-1 md:w-3/5 flex flex-col gap-4" style="height:100%;">
 
-    // --- 全局变量和配置 (Global Variables & Configuration) ---
-    const CREATE_WORLD_URL = 'https://n8n.frankyany.dpdns.org/webhook/create-world-v2';
-    const MAIN_GAME_URL = 'https://n8n.frankyany.dpdns.org/webhook/fa75edad-e99a-402e-8466-8337a4fd41d9';
-    
-    let currentWorldId = null;
+        <!-- 场景描述框 -->
+        <div class="panel" id="scene-panel" style="flex: 0 0 30%; overflow-y:auto;">
+          <h3 class="font-bold mb-2">场景</h3>
+          <p id="scene-text" class="whitespace-pre-wrap">...</p>
+        </div>
 
-    // --- DOM元素引用 (DOM Element References) ---
-    const screens = {
-        start: document.getElementById('start-screen'),
-        create: document.getElementById('create-world-screen'),
-        game: document.getElementById('game-screen'),
+        <!-- 叙事文本框 -->
+        <div class="panel flex-1 min-h-[280px] overflow-y-auto" id="narrative-panel" style="flex: 1 1 60%;">
+          <h3 class="font-bold mb-2">叙事</h3>
+          <div id="narrative-log" class="space-y-2 overflow-y-auto max-h-[50vh]"></div>
+        </div>
+
+        <!-- 行动输入 -->
+        <div class="panel" style="flex: 0 0 10%;">
+          <div class="flex gap-2 items-center">
+            <input id="action-input" class="flex-grow px-3 py-2 bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] rounded" placeholder="输入你的行动..." />
+            <button class="btn" id="action-send">发送</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 右侧栏（桌面端显示；移动端默认折叠，通过按钮展开） -->
+      <aside id="sidebar" class="w-full md:w-2/5 panel block self-stretch">
+        <div class="tab-header flex border-b border-[color:var(--border-dark)] mb-2 gap-2">
+          <div class="tab tab-active" data-tab="map">地图</div>
+          <div class="tab" data-tab="role">角色</div>
+          <div class="tab" data-tab="bag">物品</div>
+          <div class="tab" data-tab="events">事件</div>
+        </div>
+        <div id="sidebar-content" class="overflow-y-auto">
+        <div id="tab-map" class="tab-content">
+          <div class="text-sm mb-2">当前位置: <span id="cur-loc">-</span><span id="cur-exits" class="ml-2 opacity-70"></span></div>
+          <ul id="map-list" class="list-disc pl-5 space-y-1"></ul>
+          <p id="loc-desc" class="text-sm mt-2 opacity-80"></p>
+        </div>
+        <div id="tab-role" class="tab-content hidden">
+          <div class="text-sm mb-1">姓名：<span id="role-name">-</span></div>
+          <div class="text-sm mb-1">年龄：<span id="role-age">-</span></div>
+          <div class="text-sm mb-3">性别：<span id="role-gender">-</span></div>
+          <div class="text-sm mb-1">健康：<span id="role-health">-</span></div>
+          <div class="text-sm mb-4">状态：<span id="role-effects">-</span></div>
+
+          <div class="mb-1 font-bold">核心能力</div>
+          <ul class="list-disc pl-5 space-y-1">
+            <li>体魄：<span id="core-physique">-</span></li>
+            <li>心智：<span id="core-mind">-</span></li>
+            <li>风度：<span id="core-presence">-</span></li>
+          </ul>
+
+          <div class="mt-3 mb-1 font-bold">属性与特质</div>
+          <ul id="role-attrs-list" class="list-disc pl-5 space-y-1"></ul>
+
+          <div class="mt-3 mb-1 font-bold">技能与能力</div>
+          <ul id="role-skills-list" class="list-disc pl-5 space-y-1"></ul>
+        </div>
+        <div id="tab-bag" class="tab-content hidden">
+          <ul id="bag-list" class="space-y-2"></ul>
+        </div>
+        <div id="tab-events" class="tab-content hidden">
+          <div class="flex justify-end mb-2">
+            <button id="refresh-logs" class="p-2 rounded hover:bg-[color:var(--border-dark)]" title="刷新日志" aria-label="刷新日志">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5 opacity-80">
+                <path d="M12 6V3L8 7l4 4V8c2.757 0 5 2.243 5 5a5 5 0 11-8.66-3.66 1 1 0 10-1.414-1.415A7 7 0 1019 13c0-3.86-3.141-7-7-7z"/>
+              </svg>
+            </button>
+          </div>
+          <ul id="events-list" class="space-y-2"></ul>
+        </div>
+        </div>
+      </aside>
+    </div>
+    </div>
+  </section>
+
+  <!-- 弹窗：错误/提示 -->
+  <div id="modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div class="panel w-full max-w-md">
+      <div class="font-bold mb-2" id="modal-title">提示</div>
+      <div id="modal-body" class="text-sm text-[color:var(--text-secondary)]"></div>
+      <div class="text-right mt-3">
+        <button id="modal-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== 配置 =====
+    const CREATE_WORLD_URL = (window.VITE_CREATE_WORLD_URL) || 'https://n8n.frankyany.dpdns.org/webhook/eb6e4c2f-41d5-4253-8296-d57bec20c836';
+    const MAIN_GAME_URL   = (window.VITE_MAIN_GAME_URL)   || 'https://n8n.frankyany.dpdns.org/webhook/041599db-1390-4765-8cd1-b719c150e972';
+
+    // ===== 页面切换 =====
+    const el = (id)=>document.getElementById(id);
+    function show(section){ ['home','create','game'].forEach(s=>el(s).classList.add('hidden')); el(section).classList.remove('hidden'); }
+
+    // 初始化
+    el('goto-create').onclick = ()=> show('create');
+    el('back-home').onclick = ()=> show('home');
+    el('cancel-create').onclick = ()=> show('home');
+    el('exit-btn').onclick = ()=> { alert('江湖路远，有缘再会。'); };
+
+    // PC端：实时同步右栏高度为左栏高度；并按比例缩放并下移
+    function syncSidebarHeight(){
+      const left = document.getElementById('left-col');
+      const side = document.getElementById('sidebar');
+      const content = document.getElementById('sidebar-content');
+      const header = side ? side.querySelector('.tab-header') : null;
+      if (!left || !side) return;
+      const h = left.clientHeight; // 使用容器内容高度，避免box模型误差
+      // 设定固定高度并允许内部滚动，确保底部与左侧输入框齐平
+      side.style.maxHeight = h + 'px';
+      side.style.height = h + 'px';
+      // 计算主体内容可滚动高度 = 侧栏高度 - 标签头部高度 - 内边距余量
+      if (content){
+        const headerH = header ? header.getBoundingClientRect().height : 0;
+        const paddingReserve = 8; // 留少量空间避免出现双滚动条
+        const scrollH = Math.max(0, h - headerH - paddingReserve);
+        content.style.maxHeight = scrollH + 'px';
+        content.style.height = scrollH + 'px';
+        content.style.overflowY = 'auto';
+      }
+    }
+    const resizeObserver = new ResizeObserver(() => syncSidebarHeight());
+    window.addEventListener('load', () => {
+      const left = document.getElementById('left-col');
+      if (left) resizeObserver.observe(left);
+      syncSidebarHeight();
+      applyStageScale();
+      // 初始对齐一次，确保右侧底部与左侧输入框底部齐平
+      setTimeout(syncSidebarHeight, 0);
+    });
+    window.addEventListener('resize', () => { syncSidebarHeight(); applyStageScale(); });
+
+    // 2) PC端缩放游戏区域到 0.7，并下移 20%
+    function applyStageScale(){
+      const stage = document.getElementById('game-stage');
+      if (!stage) return;
+      if (window.matchMedia('(min-width: 768px)').matches){
+        stage.style.transform = 'scale(0.8) translateY(40%)';
+        stage.style.transformOrigin = 'top center';
+      } else {
+        stage.style.transform = '';
+      }
+    }
+
+    // 弹窗工具
+    function showModal(message, title='提示'){
+      el('modal-title').textContent = title;
+      el('modal-body').textContent = message;
+      el('modal').classList.remove('hidden');
+    }
+    el('modal-close').onclick = ()=> el('modal').classList.add('hidden');
+
+    // 侧栏标签切换
+    Array.from(document.querySelectorAll('#sidebar .tab')).forEach(t => {
+      t.addEventListener('click', async ()=>{
+        document.querySelectorAll('#sidebar .tab').forEach(n=>n.classList.remove('tab-active'));
+        t.classList.add('tab-active');
+        const name = t.dataset.tab;
+        document.querySelectorAll('#sidebar .tab-content').forEach(c=>c.classList.add('hidden'));
+        el('tab-'+name).classList.remove('hidden');
+        // 切换后立即将侧栏内容滚动到顶部
+        const sc = el('sidebar-content'); if (sc) sc.scrollTop = 0;
+
+        // 点开标签时按需向后端请求最新数据
+        if (!playerId) return;
+        try{
+          if (name === 'map') {
+            const r = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: 'action_show_map' });
+            mergeResult(r);
+            const sc2 = el('sidebar-content'); if (sc2) sc2.scrollTop = 0;
+          } else if (name === 'bag') {
+            const r = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: 'action_show_items' });
+            mergeResult(r);
+            const sc2 = el('sidebar-content'); if (sc2) sc2.scrollTop = 0;
+          } else if (name === 'role') {
+            const r = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: 'action_show_player' });
+            mergeResult(r);
+            const sc2 = el('sidebar-content'); if (sc2) sc2.scrollTop = 0;
+          }
+        } catch (e) {
+          showModal(e.message, '请求失败');
+        }
+      });
+    });
+
+    // ===== 状态与渲染 =====
+    let playerId = '';
+    let gameData = {
+      narrative: [],
+      scene_description: ''
     };
-    
-    const loader = document.getElementById('loader');
-    const modal = {
-        element: document.getElementById('modal'),
-        title: document.getElementById('modal-title'),
-        body: document.getElementById('modal-body'),
-        closeBtn: document.getElementById('modal-close'),
+
+    function appendNarrative(item){
+      const wrap = el('narrative-log');
+      const p = document.createElement('p');
+      if (item && item.type === 'action'){
+        p.innerHTML = `<strong>&gt; ${escapeHTML(item.text || '')}</strong>`;
+      } else {
+        p.textContent = String(item || '');
+      }
+      wrap.appendChild(p);
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+
+    function renderAll(){
+      // 场景
+      el('scene-text').textContent = gameData.scene_description || '...';
+      // 地图
+      el('cur-loc').textContent = (gameData.locationData && gameData.locationData.location_name) || '-';
+      const exitsText = formatExits(resolveExits());
+      el('cur-exits').textContent = exitsText ? `（出口：${exitsText}）` : '';
+      const mapList = el('map-list'); mapList.innerHTML = '';
+      (gameData.all_locations || []).forEach(loc=>{
+        const li = document.createElement('li');
+        li.textContent = `${loc.location_name || ''}${(gameData.locationData&&loc.location_id===gameData.locationData.location_id)?'（你在这里）':''}`;
+        mapList.appendChild(li);
+      });
+      // 地点描述
+      el('loc-desc').textContent = gameData.locationData?.location_description || '';
+      // 物品
+      const bag = el('bag-list'); bag.innerHTML = '';
+      (gameData.player_inventory || []).forEach(item=>{
+        const li = document.createElement('li');
+        li.className='p-2 border border-[color:var(--border-dark)] rounded';
+        li.innerHTML = `<strong>${escapeHTML(item.item_name||'')}</strong><div class="text-sm">${escapeHTML(item.item_description||'')}</div>`;
+        bag.appendChild(li);
+      });
+      // 事件/日志（优先显示日志列表 all_logs_array）
+      const evs = el('events-list'); evs.innerHTML = '';
+      if (Array.isArray(gameData.all_logs_array)) {
+        gameData.all_logs_array.forEach(log => {
+          const li = document.createElement('li');
+          li.className='p-2 border border-[color:var(--border-dark)] rounded';
+          const t = log.log_time || '-';
+          const ty = log.log_type || 'LOG';
+          const desc = log.log_description || '';
+          li.innerHTML = `<div class='text-xs opacity-70'>${t} (${ty})</div><div>${escapeHTML(desc)}</div>`;
+          evs.appendChild(li);
+        });
+      } else {
+        (gameData.active_events || []).forEach(ev=>{
+          const li = document.createElement('li');
+          li.className='p-2 border border-[color:var(--border-dark)] rounded';
+          li.textContent = `${ev.event_name||''} - ${ev.event_status||''}`;
+          evs.appendChild(li);
+        });
+      }
+      // 角色
+      // 角色基础
+      const p = gameData.playerData || {};
+      el('role-name').textContent = p.player_name || '-';
+      el('role-age').textContent = (p.player_age!=null ? p.player_age : '-')
+      el('role-gender').textContent = p.player_gender || '-';
+      el('role-health').textContent = p.health_status || '-';
+      el('role-effects').textContent = Array.isArray(p.status_effects) ? p.status_effects.join('、') : '-';
+
+      // 角色卡（兼容两种结构：character_sheet 或平铺字段）
+      const cs = p.character_sheet || {};
+      const core = cs.core_aptitudes || p.core_aptitudes || {};
+      el('core-physique').textContent = core.physique || core.体魄 || '-';
+      el('core-mind').textContent = core.mind || core.心智 || '-';
+      el('core-presence').textContent = core.presence || core.风度 || '-';
+
+      const attrs = cs.attributes_traits || p.attributes_traits || [];
+      const skills = cs.abilities_skills || p.abilities_skills || [];
+      renderList('role-attrs-list', attrs);
+      renderList('role-skills-list', skills);
+    }
+
+    function renderList(id, data){
+      const ul = el(id); ul.innerHTML = '';
+      (Array.isArray(data) ? data : []).forEach(item=>{
+        const li = document.createElement('li');
+        li.textContent = typeof item === 'string' ? item : JSON.stringify(item);
+        ul.appendChild(li);
+      });
+    }
+    function setPre(id, obj){ el(id).textContent = JSON.stringify(obj, null, 2); }
+    function escapeHTML(s){ return String(s).replace(/[&<>'"]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"}[m])); }
+    function translateDir(k){
+      const map = {
+        north:'北', south:'南', east:'东', west:'西',
+        northeast:'东北', northwest:'西北', southeast:'东南', southwest:'西南',
+        up:'上', down:'下', left:'左', right:'右', forward:'前', back:'后',
+        inside:'内', outside:'外', enter:'入', exit:'出'
+      };
+      return map[k] || k;
+    }
+    function formatExits(exits){
+      if (!exits || typeof exits !== 'object') return '';
+      const pairs = Object.entries(exits)
+        .filter(([,v])=>v!=null && v!=='')
+        .map(([k,v])=>`${translateDir(k)}:${v}`);
+      return pairs.join('、');
+    }
+    function resolveExits(){
+      // 兼容 n8n 不同返回结构：
+      // 1) locationData.current_location.location_exits
+      // 2) locationData.location_exits
+      // 3) 直接在根上：location_exits
+      return (gameData.locationData && (
+               gameData.locationData.current_location?.location_exits ||
+               gameData.locationData.location_exits
+             )) || gameData.location_exits || null;
+    }
+
+    // ===== 调用 n8n =====
+    async function apiCall(url, body){
+      let res, text;
+      try{
+        res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+      }catch(e){
+        throw new Error('请求失败，可能被浏览器或CORS拦截：'+e.message);
+      }
+      try{ text = await res.text(); }catch{ text = ''; }
+      if (!res.ok){ throw new Error(`接口错误：${res.status} ${res.statusText}`); }
+      if (!text){ throw new Error('服务器返回空响应'); }
+      try{ const json = JSON.parse(text); return Array.isArray(json)?(json[0]||{}):json; }catch{ throw new Error('JSON 解析失败'); }
+    }
+
+    function mergeResult(result){
+      if (!result || typeof result !== 'object') return;
+      // 更新场景描述但不写入叙事（避免加载世界时叙事与场景重复）
+      if (result.scene_description){ gameData.scene_description = result.scene_description; }
+      if (result.narrative_consequence){ appendNarrative(result.narrative_consequence); }
+      // 地图数据：兼容 {location_name, location_exits, location_description}
+      if (result.location_name || result.location_exits || result.location_description || result.location_id){
+        gameData.locationData = gameData.locationData || {}; 
+        if (result.location_id) gameData.locationData.location_id = result.location_id;
+        if (result.location_name) gameData.locationData.location_name = result.location_name;
+        if (result.location_exits) gameData.locationData.location_exits = result.location_exits;
+        if (result.location_description) gameData.locationData.location_description = result.location_description;
+      }
+      if (Array.isArray(result.all_locations)) gameData.all_locations = result.all_locations;
+      if (Array.isArray(result.player_inventory)) gameData.player_inventory = result.player_inventory;
+      if (Array.isArray(result.active_events)) gameData.active_events = result.active_events;
+      if (Array.isArray(result.all_logs_array)) gameData.all_logs_array = result.all_logs_array;
+      gameData.playerData = gameData.playerData || {};
+      if (result.player_name) gameData.playerData.player_name = result.player_name;
+      if (Object.prototype.hasOwnProperty.call(result, 'player_age')) gameData.playerData.player_age = result.player_age;
+      if (Object.prototype.hasOwnProperty.call(result, 'player_gender')) gameData.playerData.player_gender = result.player_gender;
+      if (result.health_status) gameData.playerData.health_status = result.health_status;
+      if (result.status_effects) gameData.playerData.status_effects = result.status_effects;
+      if (result.character_sheet) gameData.playerData.character_sheet = result.character_sheet;
+      if (result.core_aptitudes) gameData.playerData.core_aptitudes = result.core_aptitudes;
+      if (Array.isArray(result.attributes_traits)) gameData.playerData.attributes_traits = result.attributes_traits;
+      if (Array.isArray(result.abilities_skills)) gameData.playerData.abilities_skills = result.abilities_skills;
+      renderAll();
+    }
+
+    // ===== 交互：加载/创世/行动 =====
+    el('home-load').onclick = async ()=>{
+      const pid = el('home-player-id').value.trim(); if (!pid) return;
+      try{
+        el('home-status').textContent='加载中...'; playerId = pid; show('game');
+        const result = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action:'action_show_past' });
+        mergeResult(result); el('home-status').textContent='';
+      }catch(e){ el('home-status').textContent=''; showModal(e.message, '加载失败'); }
     };
 
-    const gameUI = {
-        sceneDescription: document.getElementById('scene-description'),
-        narrativeLog: document.getElementById('narrative-log'),
-        actionInput: document.getElementById('action-input'),
+    // 移除游戏内加载输入栏逻辑
+
+    el('create-form').addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      const payload = {
+        user_preference:{
+          world_concept: el('cg-world').value || '',
+          forbidden_elements: (el('cg-forbidden').value||'').split('\n').map(s=>s.trim()).filter(Boolean)
+        },
+        protagonist_concept:{
+          name: el('cg-name').value || '无名侠客',
+          age: parseInt(el('cg-age').value||'20',10),
+          gender: el('cg-gender').value || '未知',
+          background_story: el('cg-background').value || ''
+        }
+      };
+      const tip = el('create-status');
+      try{
+        tip.textContent='世界创建中...';
+        const result = await apiCall(CREATE_WORLD_URL, payload);
+        if (!result.player_id){ throw new Error('创世成功但未返回 player_id'); }
+        playerId = result.player_id; show('game');
+        if (result.initial_scene_description) {
+          gameData.scene_description = result.initial_scene_description;
+          // 同步到叙事模块，确保初始场景也出现在叙事区
+          appendNarrative(result.initial_scene_description);
+        }
+        if (result.opening_narrative) appendNarrative(result.opening_narrative);
+        renderAll(); tip.textContent='';
+      }catch(e){ tip.textContent=''; showModal(e.message, '创世失败'); }
+    });
+
+    // 行动（把玩家行动加粗显示在反馈上方）
+    async function sendAction(action){
+      if (!playerId || !action) return;
+      // 对于以 action_show 开头的内部工具命令，不写入左列叙事
+      if (!/^action_show/.test(action)) {
+        appendNarrative({ type:'action', text: action });
+      }
+      try{
+        const result = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: action });
+        if (result.is_action_valid === false && result.outcome_summary){ appendNarrative(result.outcome_summary); }
+        mergeResult(result);
+      }catch(e){ showModal(e.message, '请求失败'); }
+    }
+
+    el('action-send').onclick = ()=>{
+      const v = el('action-input').value.trim(); if (!v) return; el('action-input').value=''; sendAction(v);
     };
-
-    // --- 核心功能函数 (Core Functions) ---
-
-    function escapeHTML(str) {
-        if (typeof str !== 'string') {
-            return '';
-        }
-        return str.replace(/[&<>'"]/g, 
-            tag => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            }[tag] || tag)
-        );
-    }
-
-    function showScreen(screenName) {
-        Object.values(screens).forEach(screen => screen.classList.add('hidden'));
-        screens[screenName].classList.remove('hidden');
-    }
-    
-    function toggleLoader(show) {
-        loader.classList.toggle('hidden', !show);
-    }
-
-    function showModal(title, htmlContent) {
-        modal.title.textContent = title;
-        modal.body.innerHTML = htmlContent;
-        modal.element.classList.remove('hidden');
-    }
-
-    function hideModal() {
-        modal.element.classList.add('hidden');
-    }
-
-    async function apiCall(url, body) {
-        toggleLoader(true);
-        try {
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
-            });
-            if (!response.ok) {
-                throw new Error(`网络响应错误: ${response.statusText} (${response.status})`);
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('API调用失败:', error);
-            showModal('请求失败', `<p>${escapeHTML(error.message)}</p>`);
-            return null;
-        } finally {
-            toggleLoader(false);
-        }
-    }
-    
-    function updateNarrative(content, clear = false, isSafeHTML = false) {
-        if (clear) {
-            gameUI.narrativeLog.innerHTML = '';
-        }
-        const p = document.createElement('p');
-        if (isSafeHTML) {
-            p.innerHTML = content;
-        } else {
-            p.textContent = content;
-        }
-        gameUI.narrativeLog.appendChild(p);
-        gameUI.narrativeLog.scrollTop = gameUI.narrativeLog.scrollHeight;
-    }
-
-    function initializeGameUI(initialData) {
-        // 处理scene_description为null的情况
-        let scene = initialData.scene_description || initialData.initial_scene_description;
-        if (scene === null || scene === undefined) {
-            scene = "欢迎来到这个世界。";
-        }
-        
-        const narrative = initialData.narrative_consequence || initialData.opening_narrative || "你站在这里，思考着第一步。";
-        
-        gameUI.sceneDescription.textContent = scene;
-        updateNarrative(narrative, true, false);
-        showScreen('game');
-    }
-
-    // --- 事件监听器绑定 (Event Listener Bindings) ---
-
-    document.getElementById('go-to-create-btn').addEventListener('click', () => showScreen('create'));
-    document.getElementById('back-to-start-btn').addEventListener('click', () => showScreen('start'));
-
-    document.getElementById('continue-game-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const worldId = document.getElementById('world-id-input').value.trim();
-        if (!worldId) return;
-
-        currentWorldId = worldId;
-        const responseData = await apiCall(MAIN_GAME_URL, { 
-            world_id: currentWorldId, 
-            player_action: 'action_show_past'
-        });
-        
-        let gameData = null;
-        if (responseData) {
-            // [COMPATIBILITY FIX] 兼容处理：无论后端返回的是数组还是对象，都提取出核心数据对象
-            if (Array.isArray(responseData) && responseData.length > 0) {
-                gameData = responseData[0];
-            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
-                gameData = responseData; // 直接使用对象
-            }
-        }
-
-        if (gameData) {
-            // 检查错误响应
-            if (gameData.error) {
-                showModal('加载失败', `<p>错误: ${escapeHTML(gameData.message || gameData.error)}</p>`);
-                return;
-            }
-            
-            // 检查必要的数据字段
-            if (!gameData.scene_description && !gameData.narrative_consequence) {
-                showModal('加载失败', '<p>服务器返回的数据缺少必要的场景信息。</p>');
-                return;
-            }
-            
-            initializeGameUI(gameData);
-        } else {
-            showModal('加载失败', '<p>从服务器收到的数据格式不正确或为空，无法加载游戏。请检查n8n工作流的执行日志。</p>');
-        }
+    // 刷新日志按钮
+    el('refresh-logs').addEventListener('click', async ()=>{
+      if (!playerId) return;
+      try{ const r = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: 'action_show_logs' }); mergeResult(r); }
+      catch(e){ showModal(e.message, '请求失败'); }
     });
-
-    document.getElementById('create-world-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const payload = {
-            protagonist: {
-                name: document.getElementById('protagonist-name').value,
-                gender: document.getElementById('protagonist-gender').value,
-                age: document.getElementById('protagonist-age').value,
-            },
-            user_preference: document.getElementById('user-preference').value,
-        };
-        
-        const responseData = await apiCall(CREATE_WORLD_URL, payload);
-        
-        let creationData = null;
-        if (responseData) {
-            // [COMPATIBILITY FIX] 兼容创世工作流返回数组或对象
-            if (Array.isArray(responseData) && responseData.length > 0) {
-                creationData = responseData[0];
-            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
-                creationData = responseData;
-            }
-        }
-
-        if (creationData && creationData.world_id) {
-            currentWorldId = creationData.world_id;
-            initializeGameUI(creationData);
-        } else {
-             showModal('创建失败', '<p>未从服务器获取到有效的世界ID或返回格式不正确。请检查n8n工作流的最终输出。</p>');
-        }
-    });
-
-    document.getElementById('action-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const actionText = gameUI.actionInput.value.trim();
-        if (!actionText) return;
-
-        updateNarrative(`<strong>> ${escapeHTML(actionText)}</strong>`, false, true);
-        gameUI.actionInput.value = '';
-
-        const responseData = await apiCall(MAIN_GAME_URL, {
-            world_id: currentWorldId,
-            player_action: actionText,
-        });
-
-        let result = null;
-        if (responseData) {
-            // [COMPATIBILITY FIX] 兼容主流程返回数组或对象
-            if (Array.isArray(responseData) && responseData.length > 0) {
-                result = responseData[0];
-            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
-                result = responseData;
-            }
-        }
-
-        if (result) {
-            // [NEW] 增加对行动有效性的判断
-            if (result.is_action_valid === false) {
-                // 如果行动无效，显示弹窗，并更新叙事日志以提供上下文
-                showModal('行动失败', '<p>行动违反当前世界法则，不予执行。</p>');
-                if (result.outcome_summary) {
-                    updateNarrative(result.outcome_summary, false, false);
-                }
-            } else {
-                // 如果行动有效，则执行正常的界面更新
-                if (result.scene_description && result.scene_description !== null) {
-                    gameUI.sceneDescription.textContent = result.scene_description;
-                }
-                if (result.narrative_consequence) {
-                    updateNarrative(result.narrative_consequence, false, false);
-                }
-            }
-        }
-    });
-
-    // --- [NEW] “查探环境”按钮事件监听器 ---
-    document.getElementById('investigate-btn').addEventListener('click', async () => {
-        if (!currentWorldId) return;
-
-        // 在日志中显示玩家的动作
-        updateNarrative(`<strong>> 你仔细查探周围的环境...</strong>`, false, true);
-
-        const responseData = await apiCall(MAIN_GAME_URL, {
-            world_id: currentWorldId,
-            player_action: 'action_show_around', // 发送指定的action
-        });
-
-        let result = null;
-        if (responseData) {
-            // 兼容处理返回的数组或对象
-            if (Array.isArray(responseData) && responseData.length > 0) {
-                result = responseData[0];
-            } else if (typeof responseData === 'object' && !Array.isArray(responseData)) {
-                result = responseData;
-            }
-        }
-
-        if (result && result.scene_description) {
-            // 将查探结果更新到叙事日志中
-            updateNarrative(result.scene_description, false, false);
-        } else {
-            // 如果没有收到预期的描述，也给出反馈
-            updateNarrative("你仔细观察了四周，但没有发现什么特别的东西。", false, false);
-        }
-    });
-
-    // 侧边栏功能按钮
-    document.getElementById('map-btn').addEventListener('click', async () => {
-        const responseData = await apiCall(MAIN_GAME_URL, {
-            world_id: currentWorldId,
-            player_action: 'action_show_map',
-        });
-        
-        if (responseData) {
-            try {
-                // [COMPATIBILITY FIX] 兼容处理：无论返回的是数组还是对象，都提取出核心数据
-                const locationData = Array.isArray(responseData) ? responseData[0] : responseData;
-                if (!locationData || Object.keys(locationData).length === 0) {
-                    showModal('地图', '<p>无法获取地图信息或信息为空。</p>');
-                    return;
-                }
-
-                // 检查错误响应
-                if (locationData.error) {
-                    showModal('地图', `<p>错误: ${escapeHTML(locationData.message || locationData.error)}</p>`);
-                    return;
-                }
-                
-                // 根据标准格式读取数据
-                const locationName = locationData.location_name || locationData.name || "未知位置";
-                const exitsObject = locationData.location_exits || locationData.exits || {}; 
-                const locationDescription = locationData.location_description || "";
-                
-                let exitsHtml = '';
-                if (exitsObject && typeof exitsObject === 'object' && Object.keys(exitsObject).length > 0) {
-                    for (const [direction, destination] of Object.entries(exitsObject)) {
-                        exitsHtml += `<li>${escapeHTML(direction)}: ${escapeHTML(String(destination))}</li>`;
-                    }
-                }
-
-                let html = `
-                    <ul>
-                        <li><strong>当前位置:</strong> ${escapeHTML(locationName)}</li>
-                    </ul>`;
-                
-                if (locationDescription) {
-                    html += `<p><strong>描述:</strong> ${escapeHTML(locationDescription)}</p>`;
-                }
-                
-                html += `<strong>出口:</strong>
-                    <ul>
-                        ${exitsHtml || '<li>此地无路可走。</li>'}
-                    </ul>`;
-                
-                showModal('地图', html);
-
-            } catch (e) {
-                console.error("解析地图数据失败:", e);
-                showModal('地图', '<p>收到的地图数据格式不正确。</p>');
-            }
-        } else {
-            showModal('地图', '<p>无法获取地图信息或信息为空。</p>');
-        }
-    });
-
-    document.getElementById('items-btn').addEventListener('click', async () => {
-        const responseData = await apiCall(MAIN_GAME_URL, {
-            world_id: currentWorldId,
-            player_action: 'action_show_items',
-        });
-        
-        if (responseData) {
-            try {
-                const dataObject = Array.isArray(responseData) ? responseData[0] : responseData;
-                
-                if (!dataObject || Object.keys(dataObject).length === 0) {
-                    showModal('我的物品', '<p>无法获取物品信息或信息为空。</p>');
-                    return;
-                }
-                
-                if (dataObject.error) {
-                    showModal('我的物品', `<p>错误: ${escapeHTML(dataObject.message || dataObject.error)}</p>`);
-                    return;
-                }
-                
-                // [ULTRA-ROBUST FIX V2] 最终修复方案
-                let items = []; // 默认设为空数组，确保安全
-                
-                if (dataObject.display_type === 'item_list' && Array.isArray(dataObject.content)) {
-                    // 1. 处理标准格式
-                    items = dataObject.content;
-                } else if (dataObject.hasOwnProperty('player_inventory')) {
-                    // 2. 处理旧格式
-                    const inventoryData = dataObject.player_inventory;
-                    if (Array.isArray(inventoryData)) {
-                        // 2a. 如果已经是数组，直接使用
-                        items = inventoryData;
-                    } else if (typeof inventoryData === 'string') {
-                        // 2b. 如果是字符串，尝试解析
-                        try {
-                            items = JSON.parse(inventoryData);
-                        } catch (e) {
-                            console.error("无法解析物品清单字符串:", inventoryData);
-                            items = []; // 解析失败则视为空
-                        }
-                    }
-                    // 2c. 如果解析后不是数组(例如解析自"null"), 确保它变为空数组
-                    if (!Array.isArray(items)) {
-                        items = [];
-                    }
-                } else {
-                    // 3. 如果两种格式都不匹配，则显示错误并退出
-                    showModal('我的物品', '<p>服务器返回的物品数据格式无法识别。</p>');
-                    return;
-                }
-
-                // --- 渲染逻辑 ---
-                let html = '<ul>';
-                if (items.length > 0) {
-                    items.forEach(item => {
-                        const itemName = item.item_name || '未知物品';
-                        const itemDesc = item.item_description || '无描述';
-                        const itemProps = item.item_properties;
-                        
-                        html += `<li><strong>${escapeHTML(itemName)}</strong><br><small>${escapeHTML(itemDesc)}</small>`;
-                        
-                        if (itemProps && typeof itemProps === 'object') {
-                            html += '<br><small style="color: #666;">';
-                            const props = [];
-                            if (itemProps.durability !== undefined) props.push(`耐久: ${itemProps.durability}`);
-                            if (itemProps.weight !== undefined) props.push(`重量: ${itemProps.weight}`);
-                            if (itemProps.value !== undefined) props.push(`价值: ${itemProps.value}`);
-                            if (itemProps.rarity !== undefined) props.push(`稀有度: ${itemProps.rarity}`);
-                            html += props.join(' | ');
-                            html += '</small>';
-                        }
-                        
-                        html += '</li>';
-                    });
-                } else {
-                    html += '<li>你的行囊空空如也。</li>';
-                }
-                html += '</ul>';
-                showModal('我的物品', html);
-
-            } catch (e) {
-                console.error("解析物品数据时出错:", e);
-                showModal('我的物品', '<p>处理物品数据时发生了一个内部错误。</p>');
-            }
-        } else {
-            showModal('我的物品', '<p>无法获取物品信息或信息为空。</p>');
-        }
-    });
-    
-    document.getElementById('logs-btn').addEventListener('click', async () => {
-        const responseData = await apiCall(MAIN_GAME_URL, {
-            world_id: currentWorldId,
-            player_action: 'action_show_logs'
-        });
-
-        if (responseData) {
-            // [COMPATIBILITY FIX] 兼容处理：无论返回的是数组还是对象，都提取出核心数据
-            const logsData = Array.isArray(responseData) ? responseData[0] : responseData;
-             if (!logsData || Object.keys(logsData).length === 0) {
-                showModal('游戏日志', '<p>无法获取日志信息或信息为空。</p>');
-                return;
-            }
-
-            // 检查错误响应
-            if (logsData.error) {
-                showModal('游戏日志', `<p>错误: ${escapeHTML(logsData.message || logsData.error)}</p>`);
-                return;
-            }
-            
-            // 根据标准格式读取数据
-            if (logsData.all_logs_array && Array.isArray(logsData.all_logs_array)) {
-                const logs = logsData.all_logs_array;
-                let html = '<ul>';
-
-                if (logs.length > 0) {
-                    logs.forEach(logEntry => {
-                        const logTime = logEntry.log_time || '未知时间';
-                        const logType = logEntry.log_type || '未知类型';
-                        const logDesc = logEntry.log_description || '无描述';
-                        
-                        html += `<li><strong>${escapeHTML(logTime)}</strong> (${escapeHTML(logType)})<br><small>${escapeHTML(logDesc)}</small></li>`;
-                    });
-                } else {
-                    html += '<li>暂无日志记录。</li>';
-                }
-                html += '</ul>';
-                showModal('游戏日志', html);
-            } else {
-                showModal('游戏日志', '<p>服务器返回的日志数据格式不正确。</p>');
-            }
-        } else {
-            showModal('游戏日志', '<p>无法获取日志信息或信息为空。</p>');
-        }
-    });
-
-    // 模态弹窗关闭按钮
-    modal.closeBtn.addEventListener('click', hideModal);
-    modal.element.addEventListener('click', (e) => {
-        if (e.target === modal.element) {
-            hideModal();
-        }
-    });
-
-});
-</script>
-
+  </script>
 </body>
 </html>
+
+
