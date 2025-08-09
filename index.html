@@ -21,9 +21,49 @@
     .divider{ border-top:1px solid var(--border-dark); }
     /* 右侧栏固定标签+主体滚动（PC端） */
     @media (min-width: 768px){
+      /* PC端主游戏框架高度 +20%：由 70vh 提升至 84vh */
+      #stage-inner{ height:84vh !important; }
+      /* PC端让主游戏框架在页面中居中 */
+      #game-stage{ display:flex; justify-content:center; align-items:center; min-height: calc(100vh - 96px); }
       #sidebar{ display:flex; flex-direction:column; }
       #sidebar .tab-header{ flex:0 0 auto; }
       #sidebar-content{ flex:1 1 auto; overflow-y:auto; }
+    }
+
+    /* 移动端整体调整 */
+    @media (max-width: 767px){
+      /* 字体整体缩小一号 */
+      body{ font-size:15px; }
+
+      /* 顶部图标栏（由右侧改为顶部） */
+      #mobile-rail{ position:fixed; right:8px; top:8px; display:flex; flex-direction:row; gap:8px; z-index:50; }
+      #mobile-rail .rail-btn{ width:42px; height:42px; display:flex; align-items:center; justify-content:center; background:var(--panel-dark); border:1px solid var(--border-dark); border-radius:.5rem; color:var(--text-secondary); }
+      #mobile-rail .rail-btn:hover{ color:#fff; background:var(--accent); border-color:var(--accent); }
+
+      /* 将原右侧栏作为顶部抽屉使用 */
+      #sidebar{ position:fixed; top:0; left:0; right:0; height:75vh; width:100vw; max-width:none; transform:translateY(-100%); transition:transform .2s ease; z-index:60; }
+      #sidebar.open{ transform:translateY(0); }
+      #sidebar .tab-header{ display:none; }
+
+      /* 遮罩 */
+      #drawer-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:55; display:none; }
+      #drawer-overlay.show{ display:block; }
+
+      /* 为顶部图标栏预留空间，避免覆盖内容 */
+      #game-stage{ margin-top:56px; }
+
+      /* 提升移动端可视高度，自适配常见机型 */
+      #stage-inner{ height:86dvh !important; }
+
+      /* 返回按钮在移动端仅显示图标 */
+      #back-to-home-in-game{ position:fixed; top:8px; left:8px; z-index:50; width:42px; height:42px; display:flex; align-items:center; justify-content:center; padding:.5rem; }
+      #back-to-home-in-game span{ display:none; }
+
+      /* 抽屉打开时隐藏/禁用顶部图标栏，避免遮挡 */
+      body.drawer-open #mobile-rail{ opacity:0; pointer-events:none; transition:opacity .15s ease; }
+    }
+    @media (min-width: 768px){
+      #mobile-rail, #drawer-overlay{ display:none !important; }
     }
   </style>
 </head>
@@ -31,12 +71,20 @@
   <!-- 主菜单 -->
   <section id="home" class="min-h-screen flex items-center justify-center">
     <div class="w-full max-w-xl panel">
-      <h1 class="text-2xl md:text-3xl mb-6">文字冒险 - 主菜单</h1>
+      <h1 class="text-2xl md:text-3xl mb-6">文字冒险</h1>
       <div class="flex flex-col gap-4">
         <button class="btn" id="goto-create">创建世界</button>
         <div class="flex gap-2 flex-col sm:flex-row">
-          <input id="home-player-id" placeholder="输入 player_id 用于加载世界" class="flex-grow px-3 py-2 bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] rounded" />
+          <input id="home-player-id" placeholder="player_id" class="flex-grow px-3 py-2 bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] rounded" />
           <button class="btn" id="home-load">加载世界</button>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn" id="home-continue">继续游戏</button>
+        </div>
+        <div class="divider my-2"></div>
+        <div>
+          <div class="mb-2 text-sm opacity-80">本地存档</div>
+          <div id="save-list" class="space-y-2 text-sm"></div>
         </div>
         <button class="btn" id="exit-btn">离开游戏</button>
         <div class="text-sm text-[color:var(--text-secondary)]" id="home-status"></div>
@@ -89,8 +137,12 @@
 
   <!-- 游戏页面 -->
   <section id="game" class="hidden min-h-screen p-4 md:p-6">
-    <div class="mb-3 flex justify-between items-center">
-      <button id="back-to-home-in-game" class="btn">返回主菜单</button>
+    <div class="mb-3 flex justify-between items-center relative">
+      <button id="back-to-home-in-game" class="btn" title="返回主菜单" aria-label="返回主菜单">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5">
+          <path d="M10 19l-7-7 7-7v4h8v6h-8v4z"/>
+        </svg>
+      </button>
     </div>
     <div id="game-stage" class="game-stage flex justify-center">
     <div id="stage-inner" class="flex flex-col md:flex-row md:items-stretch gap-4 w-full md:w-[90%] min-h-0" style="height:70vh;">
@@ -178,6 +230,29 @@
         </div>
         </div>
       </aside>
+      
+      <!-- 移动端右侧图标栏与抽屉遮罩（只在移动端可见） -->
+      <div id="mobile-rail">
+        <button class="rail-btn" data-tab="map" title="地图" aria-label="地图">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M9.5 4.5 4 6.75v12.75l5.5-2.25 5 2.25 5.5-2.25V4.5l-5.5 2.25-5-2.25zM10 6.67v10.66l4 1.8V8.47l-4-1.8z"/></svg>
+        </button>
+        <button class="rail-btn" data-tab="observe" title="观察" aria-label="观察">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 11a4 4 0 110-8 4 4 0 010 8z"/></svg>
+        </button>
+        <button class="rail-btn" data-tab="role" title="角色" aria-label="角色">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-5 0-9 3-9 6v2h18v-2c0-3-4-6-9-6z"/></svg>
+        </button>
+        <button class="rail-btn" data-tab="status" title="状态" aria-label="状态">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M13 3a9 9 0 100 18 9 9 0 000-18zm-1 5h2v6h-2V8zm0 8h2v2h-2v-2z"/></svg>
+        </button>
+        <button class="rail-btn" data-tab="bag" title="物品" aria-label="物品">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M16 6V5a4 4 0 10-8 0v1H5a2 2 0 00-2 2v10a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-3zm-6-1a2 2 0 114 0v1h-4V5z"/></svg>
+        </button>
+        <button class="rail-btn" data-tab="events" title="事件" aria-label="事件">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-5 h-5"><path d="M7 2h2v2h6V2h2v2h3v18H4V4h3V2zm13 6H4v12h16V8zm-8 2h2v5h4v2h-6v-7z"/></svg>
+        </button>
+      </div>
+      <div id="drawer-overlay"></div>
     </div>
     </div>
   </section>
@@ -207,6 +282,10 @@
     el('back-home').onclick = ()=> show('home');
     el('cancel-create').onclick = ()=> show('home');
     el('exit-btn').onclick = ()=> { alert('江湖路远，有缘再会。'); };
+    el('home-continue').onclick = ()=> {
+      const last = localStorage.getItem('lastPlayerId');
+      if (last){ el('home-player-id').value = last; el('home-load').click(); }
+    };
 
     // PC端：实时同步右栏高度为左栏高度；并按比例缩放并下移
     function syncSidebarHeight(){
@@ -215,6 +294,17 @@
       const content = document.getElementById('sidebar-content');
       const header = side ? side.querySelector('.tab-header') : null;
       if (!left || !side) return;
+      // 移动端作为抽屉使用，不同步高度
+      if (window.matchMedia('(max-width: 767px)').matches){
+        if (content){
+          content.style.maxHeight = '';
+          content.style.height = '';
+          content.style.overflowY = 'auto';
+        }
+        side.style.maxHeight = '';
+        side.style.height = '';
+        return;
+      }
       const h = left.clientHeight; // 使用容器内容高度，避免box模型误差
       // 设定固定高度并允许内部滚动，确保底部与左侧输入框齐平
       side.style.maxHeight = h + 'px';
@@ -237,16 +327,30 @@
       applyStageScale();
       // 初始对齐一次，确保右侧底部与左侧输入框底部齐平
       setTimeout(syncSidebarHeight, 0);
+      // 渲染存档列表
+      renderSaveList();
+      const last = localStorage.getItem('lastPlayerId');
+      if (last) el('home-player-id').value = last;
     });
-    window.addEventListener('resize', () => { syncSidebarHeight(); applyStageScale(); });
+    window.addEventListener('resize', () => { 
+      // 切回桌面时关闭抽屉
+      if (!window.matchMedia('(max-width: 767px)').matches){
+        const side = document.getElementById('sidebar');
+        const ov = document.getElementById('drawer-overlay');
+        if (side) side.classList.remove('open');
+        if (ov) ov.classList.remove('show');
+      }
+      syncSidebarHeight(); applyStageScale(); 
+    });
 
     // 2) PC端缩放游戏区域到 0.7，并下移 20%
     function applyStageScale(){
       const stage = document.getElementById('game-stage');
       if (!stage) return;
       if (window.matchMedia('(min-width: 768px)').matches){
-        stage.style.transform = 'scale(0.8) translateY(40%)';
-        stage.style.transformOrigin = 'top center';
+        // PC端取消缩放与下移，保持居中
+        stage.style.transform = '';
+        stage.style.transformOrigin = '';
       } else {
         stage.style.transform = '';
       }
@@ -259,6 +363,27 @@
       el('modal').classList.remove('hidden');
     }
     el('modal-close').onclick = ()=> el('modal').classList.add('hidden');
+
+    // 移动端抽屉开合
+    function isMobile(){ return window.matchMedia('(max-width: 767px)').matches; }
+    function openDrawer(tabName){
+      if (!isMobile()) return;
+      const target = document.querySelector(`#sidebar .tab[data-tab="${tabName}"]`);
+      if (target) target.click();
+      const side = document.getElementById('sidebar');
+      const ov = document.getElementById('drawer-overlay');
+      if (side) side.classList.add('open');
+      if (ov) ov.classList.add('show');
+      const sc = document.getElementById('sidebar-content'); if (sc) sc.scrollTop = 0;
+      document.body.classList.add('drawer-open');
+    }
+    function closeDrawer(){
+      const side = document.getElementById('sidebar');
+      const ov = document.getElementById('drawer-overlay');
+      if (side) side.classList.remove('open');
+      if (ov) ov.classList.remove('show');
+      document.body.classList.remove('drawer-open');
+    }
 
     // 侧栏标签切换
     Array.from(document.querySelectorAll('#sidebar .tab')).forEach(t => {
@@ -300,6 +425,13 @@
         }
       });
     });
+
+    // 移动端：图标栏事件与遮罩关闭
+    Array.from(document.querySelectorAll('#mobile-rail .rail-btn')).forEach(btn => {
+      btn.addEventListener('click', () => openDrawer(btn.dataset.tab));
+    });
+    const drawerOv = document.getElementById('drawer-overlay');
+    if (drawerOv){ drawerOv.addEventListener('click', closeDrawer); }
 
     // ===== 状态与渲染 =====
     let playerId = '';
@@ -413,7 +545,11 @@
 
     function renderList(id, data){
       const ul = el(id); ul.innerHTML = '';
-      (Array.isArray(data) ? data : []).forEach(item=>{
+      let list = [];
+      if (Array.isArray(data)) list = data;
+      else if (data && typeof data === 'object') list = Object.entries(data).map(([k,v])=> `${k}：${v}`);
+      else if (typeof data === 'string') list = [data];
+      list.forEach(item=>{
         const li = document.createElement('li');
         li.textContent = typeof item === 'string' ? item : JSON.stringify(item);
         ul.appendChild(li);
@@ -448,6 +584,48 @@
              )) || gameData.location_exits || null;
     }
 
+    // ===== 本地存档：保存/读取/列表/删除 =====
+    function readSaves(){
+      try{ return JSON.parse(localStorage.getItem('saves')||'[]'); }catch{ return []; }
+    }
+    function writeSaves(saves){ localStorage.setItem('saves', JSON.stringify(saves)); }
+    function saveLocalArchive({ player_id, world_name, scene, time }){
+      if (!player_id) return;
+      const title = world_name || (scene ? (scene.slice(0,20)+'…') : '存档');
+      const saves = readSaves().filter(s=>s && s.player_id !== player_id);
+      const entry = { player_id, title, world_name: world_name||'', scene: scene||'', time: time||'', createdAt: Date.now() };
+      saves.unshift(entry);
+      writeSaves(saves.slice(0,20));
+      localStorage.setItem('lastPlayerId', player_id);
+      renderSaveList();
+    }
+    function deleteSave(player_id){
+      const saves = readSaves().filter(s=>s.player_id !== player_id);
+      writeSaves(saves);
+      renderSaveList();
+    }
+    function renderSaveList(){
+      const box = document.getElementById('save-list'); if (!box) return;
+      const saves = readSaves();
+      if (!saves.length){ box.innerHTML = '<div class="opacity-60">暂无存档</div>'; return; }
+      box.innerHTML = '';
+      saves.forEach(s=>{
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between p-2 border border-[color:var(--border-dark)] rounded';
+        const left = document.createElement('div');
+        const t = new Date(s.createdAt||Date.now());
+        left.innerHTML = `<div class="font-bold">${escapeHTML(s.title||'存档')}</div><div class="opacity-70 text-xs">${t.toLocaleString()} · ${escapeHTML(s.player_id)}</div>`;
+        const right = document.createElement('div');
+        right.className = 'flex gap-2';
+        const btnLoad = document.createElement('button'); btnLoad.className='btn'; btnLoad.textContent='加载';
+        btnLoad.onclick = ()=>{ const ipt = document.getElementById('home-player-id'); if (ipt){ ipt.value = s.player_id; } document.getElementById('home-load').click(); };
+        const btnDel = document.createElement('button'); btnDel.className='btn'; btnDel.textContent='删除'; btnDel.onclick = ()=> deleteSave(s.player_id);
+        right.appendChild(btnLoad); right.appendChild(btnDel);
+        row.appendChild(left); row.appendChild(right);
+        box.appendChild(row);
+      });
+    }
+
     // ===== 调用 n8n =====
     async function apiCall(url, body){
       let res, text;
@@ -456,6 +634,25 @@
       }catch(e){
         throw new Error('请求失败，可能被浏览器或CORS拦截：'+e.message);
       }
+      try{ text = await res.text(); }catch{ text = ''; }
+      if (!res.ok){ throw new Error(`接口错误：${res.status} ${res.statusText}`); }
+      if (!text){ throw new Error('服务器返回空响应'); }
+      try{ const json = JSON.parse(text); return Array.isArray(json)?(json[0]||{}):json; }catch{ throw new Error('JSON 解析失败'); }
+    }
+
+    // 带超时控制的请求。超时抛出 'TIMEOUT' 错误标识
+    async function apiCallWithTimeout(url, body, timeoutMs){
+      const controller = new AbortController();
+      const to = setTimeout(()=>controller.abort('TIMEOUT'), Math.max(0, timeoutMs||0));
+      let res, text;
+      try{
+        res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal: controller.signal });
+      }catch(e){
+        clearTimeout(to);
+        if (e && (e.name === 'AbortError' || e === 'TIMEOUT')){ throw new Error('TIMEOUT'); }
+        throw new Error('请求失败，可能被浏览器或CORS拦截：'+(e&&e.message||e));
+      }
+      clearTimeout(to);
       try{ text = await res.text(); }catch{ text = ''; }
       if (!res.ok){ throw new Error(`接口错误：${res.status} ${res.statusText}`); }
       if (!text){ throw new Error('服务器返回空响应'); }
@@ -471,7 +668,12 @@
         if (result.scene_description){ gameData.scene_description = result.scene_description; }
         if (result.narrative_time){ gameData.narrative_time = result.narrative_time; }
       }
-      if (result.narrative_consequence){ appendNarrative(result.narrative_consequence); }
+      // 只在确认为“叙事”的情况下追加，过滤掉疑似日志串
+      if (result.narrative_consequence && typeof result.narrative_consequence === 'string'){
+        const s = result.narrative_consequence.trim();
+        const looksLikeLog = /^\d{4}-\d{2}-\d{2}[ T]/.test(s) || /\b\(PLAYER_ACTION\)\b/i.test(s) || /\bWORLD_CREATION\b/i.test(s);
+        if (!looksLikeLog){ appendNarrative(s); }
+      }
       // 地图数据：兼容 {location_name, location_exits, location_description}
       if (result.location_name || result.location_exits || result.location_description || result.location_id){
         gameData.locationData = gameData.locationData || {}; 
@@ -494,8 +696,34 @@
       if (result.status_effects) gameData.playerData.status_effects = result.status_effects;
       if (result.character_sheet) gameData.playerData.character_sheet = result.character_sheet;
       if (result.core_aptitudes) gameData.playerData.core_aptitudes = result.core_aptitudes;
-      if (Array.isArray(result.attributes_traits)) gameData.playerData.attributes_traits = result.attributes_traits;
-      if (Array.isArray(result.abilities_skills)) gameData.playerData.abilities_skills = result.abilities_skills;
+      // attributes_traits 兼容字符串JSON
+      if (Array.isArray(result.attributes_traits)) {
+        gameData.playerData.attributes_traits = result.attributes_traits;
+      } else if (typeof result.attributes_traits === 'string') {
+        try{
+          const parsed = JSON.parse(result.attributes_traits);
+          if (Array.isArray(parsed)) gameData.playerData.attributes_traits = parsed;
+          else if (parsed && typeof parsed === 'object') gameData.playerData.attributes_traits = Object.values(parsed);
+          else gameData.playerData.attributes_traits = [result.attributes_traits];
+        }catch{
+          gameData.playerData.attributes_traits = [result.attributes_traits];
+        }
+      }
+      // abilities_skills 兼容字符串JSON或对象
+      if (Array.isArray(result.abilities_skills)) {
+        gameData.playerData.abilities_skills = result.abilities_skills;
+      } else if (typeof result.abilities_skills === 'string') {
+        try{
+          const parsed = JSON.parse(result.abilities_skills);
+          if (Array.isArray(parsed)) gameData.playerData.abilities_skills = parsed;
+          else if (parsed && typeof parsed === 'object') gameData.playerData.abilities_skills = Object.entries(parsed).map(([k,v])=> `${k}：${v}`);
+          else gameData.playerData.abilities_skills = [result.abilities_skills];
+        }catch{
+          gameData.playerData.abilities_skills = [result.abilities_skills];
+        }
+      } else if (result.abilities_skills && typeof result.abilities_skills === 'object') {
+        gameData.playerData.abilities_skills = Object.entries(result.abilities_skills).map(([k,v])=> `${k}：${v}`);
+      }
       renderAll();
     }
 
@@ -506,6 +734,8 @@
         el('home-status').textContent='加载中...'; playerId = pid; show('game');
         const result = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action:'action_show_past' });
         mergeResult(result); el('home-status').textContent='';
+        // 保存本地存档（加载成功）
+        saveLocalArchive({ player_id: playerId, world_name: result.world_name || '', scene: gameData.scene_description||'', time: gameData.narrative_time||'' });
       }catch(e){ el('home-status').textContent=''; showModal(e.message, '加载失败'); }
     };
 
@@ -543,8 +773,55 @@
         }
         if (result.opening_narrative) appendNarrative(result.opening_narrative);
         renderAll(); tip.textContent='';
+        // 保存本地存档（创世成功）
+        saveLocalArchive({ player_id: playerId, world_name: result.world_name || '', scene: gameData.scene_description||'', time: gameData.narrative_time||'' });
       }catch(e){ tip.textContent=''; showModal(e.message, '创世失败'); }
     });
+
+    // ===== 降级轮询（请求超时后触发） =====
+    const degraded = { active:false, timer:null, sameCount:0, lastSnapshot:'' };
+    function buildSnapshotString(scene, time, logs){
+      const logsSig = Array.isArray(logs) ? logs.map(l=>`${l.log_time||''}|${l.log_description||''}`).slice(-50) : [];
+      return JSON.stringify({ s: scene||'', t: time||'', l: logsSig });
+    }
+    function currentSnapshotString(){
+      return buildSnapshotString(gameData.scene_description, gameData.narrative_time, gameData.all_logs_array||[]);
+    }
+    function stopDegradedPolling(){
+      if (degraded.timer){ clearInterval(degraded.timer); degraded.timer = null; }
+      degraded.active = false; degraded.sameCount = 0; degraded.lastSnapshot = '';
+    }
+    async function pollDegradedOnce(){
+      if (!playerId) return;
+      try{
+        const past = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action:'action_show_past' });
+        let logsArr = [];
+        try{
+          const logs = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action:'action_show_logs' });
+          if (Array.isArray(logs.all_logs_array)) logsArr = logs.all_logs_array;
+        }catch{}
+        const snap = buildSnapshotString(past.scene_description || gameData.scene_description, past.narrative_time || gameData.narrative_time, logsArr);
+        if (!degraded.lastSnapshot){ degraded.lastSnapshot = currentSnapshotString(); }
+        if (snap === degraded.lastSnapshot){
+          degraded.sameCount += 1;
+          if (degraded.sameCount >= 3){ stopDegradedPolling(); showModal('服务器长时间未响应，请稍后重试', '请求超时'); }
+          return;
+        }
+        // 有变化：更新UI并停止降级轮询
+        mergeResult(past);
+        if (Array.isArray(logsArr) && logsArr.length){ mergeResult({ all_logs_array: logsArr }); }
+        degraded.lastSnapshot = snap;
+        degraded.sameCount = 0;
+        stopDegradedPolling();
+      }catch(e){ /* 忽略，等待下次 */ }
+    }
+    function startDegradedPolling(){
+      if (degraded.active) return;
+      degraded.active = true;
+      degraded.sameCount = 0;
+      degraded.lastSnapshot = currentSnapshotString();
+      degraded.timer = setInterval(pollDegradedOnce, 30000);
+    }
 
     // 行动（把玩家行动加粗显示在反馈上方）
     async function sendAction(action){
@@ -554,10 +831,24 @@
         appendNarrative({ type:'action', text: action });
       }
       try{
-        const result = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: action });
+        const result = await apiCallWithTimeout(MAIN_GAME_URL, { player_id: playerId, player_action: action }, 100000);
         if (result.is_action_valid === false && result.outcome_summary){ appendNarrative(result.outcome_summary); }
         mergeResult(result);
-      }catch(e){ showModal(e.message, '请求失败'); }
+        // 紧跟一次日志刷新，确保快照包含最新日志
+        try{
+          const logs = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: 'action_show_logs' });
+          mergeResult(logs);
+        }catch{}
+        // 正常返回即退出降级轮询
+        stopDegradedPolling();
+      }catch(e){
+        if (e && e.message === 'TIMEOUT'){
+          // 进入降级轮询
+          startDegradedPolling();
+        } else {
+          showModal(e.message, '请求失败');
+        }
+      }
     }
 
     el('action-send').onclick = ()=>{
@@ -568,11 +859,11 @@
       if (e.key === 'Enter') { e.preventDefault(); el('action-send').click(); }
     });
     // 游戏内返回主菜单
-    el('back-to-home-in-game').onclick = ()=> show('home');
+    el('back-to-home-in-game').onclick = ()=> { closeDrawer(); show('home'); };
     // 刷新日志按钮
     el('refresh-logs').addEventListener('click', async ()=>{
       if (!playerId) return;
-      try{ const r = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: 'action_show_logs' }); mergeResult(r); }
+      try{ const r = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action: 'action_show_logs' }); mergeResult(r); stopDegradedPolling(); }
       catch(e){ showModal(e.message, '请求失败'); }
     });
   </script>
