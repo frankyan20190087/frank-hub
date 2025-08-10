@@ -10,6 +10,13 @@
       --bg-dark:#1c1f26; --panel-dark:#2b3039; --border-dark:#3a3f48;
       --text-primary:#e4e6eb; --text-secondary:#c0c3c8; --accent:#5c6fb1;
     }
+    /* 加载弹窗存档列表布局（通用） */
+    #load-modal .save-row{ display:grid; grid-template-columns: 1fr auto; gap:.5rem; align-items:center; }
+    #load-modal .save-left{ min-width:0; }
+    #load-modal .save-left .save-title{ font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #load-modal .save-left .save-meta{ opacity:.7; font-size:.75rem; }
+    #load-modal .save-actions{ display:flex; gap:.5rem; }
+    .btn-sm{ padding:.25rem .5rem; font-size:.875rem; }
     body{ background:var(--bg-dark); color:var(--text-primary); font-family: Inter, system-ui, Arial, sans-serif; }
     /* PC端字体整体调大一号 */
     @media (min-width: 768px){ body{ font-size: 18px; } }
@@ -34,6 +41,7 @@
     @media (max-width: 767px){
       /* 字体整体缩小一号 */
       body{ font-size:15px; }
+      #load-modal .save-actions .btn{ padding:.25rem .5rem; }
 
       /* 顶部图标栏（由右侧改为顶部） */
       #mobile-rail{ position:fixed; right:8px; top:8px; display:flex; flex-direction:row; gap:8px; z-index:50; }
@@ -258,6 +266,28 @@
     </div>
   </div>
 
+  <!-- 弹窗：加载世界 -->
+  <div id="load-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+    <div class="panel w-full max-w-2xl">
+      <div class="font-bold mb-2">加载世界</div>
+      <div class="flex flex-col gap-3">
+        <!-- 第一行：输入 + 按钮 -->
+        <div class="flex gap-2 flex-col sm:flex-row">
+          <input id="lm-player-id" placeholder="player_id" class="flex-grow px-3 py-2 bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] rounded" />
+          <button class="btn" id="lm-load">加载世界</button>
+        </div>
+        <!-- 第二行：本地存档列表（预览、加载、删除） -->
+        <div>
+          <div class="mb-2 text-sm opacity-80">本地存档</div>
+          <div id="lm-save-list" class="space-y-2 text-sm max-h-[60vh] overflow-auto"></div>
+        </div>
+      </div>
+      <div class="text-right mt-3">
+        <button id="lm-close" class="btn">关闭</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // ===== 配置 =====
     const CREATE_WORLD_URL = (window.VITE_CREATE_WORLD_URL) || 'https://n8n.frankyany.dpdns.org/webhook/eb6e4c2f-41d5-4253-8296-d57bec20c836';
@@ -272,9 +302,19 @@
     el('back-home').onclick = ()=> show('home');
     el('cancel-create').onclick = ()=> show('home');
     el('exit-btn').onclick = ()=> { alert('江湖路远，有缘再会。'); };
-    el('home-continue').onclick = ()=> {
-      const last = localStorage.getItem('lastPlayerId');
-      if (last){ el('home-player-id').value = last; el('home-load').click(); }
+    // 打开/关闭加载弹窗
+    const loadModal = document.getElementById('load-modal');
+    el('open-load-modal').onclick = ()=>{ loadModal.classList.remove('hidden'); renderLoadModalSaves(); const last = localStorage.getItem('lastPlayerId'); if (last) el('lm-player-id').value = last; };
+    el('lm-close').onclick = ()=> loadModal.classList.add('hidden');
+    el('lm-load').onclick = async ()=>{
+      const pid = el('lm-player-id').value.trim(); if (!pid) return;
+      try{
+        el('home-status').textContent='加载中...'; playerId = pid; show('game');
+        const result = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action:'action_show_past' });
+        mergeResult(result); el('home-status').textContent='';
+        saveLocalArchive({ player_id: playerId, world_name: result.world_name || '', scene: gameData.scene_description||'', time: gameData.narrative_time||'' });
+        loadModal.classList.add('hidden');
+      }catch(e){ el('home-status').textContent=''; showModal(e.message, '加载失败'); }
     };
 
     // PC端：实时同步右栏高度为左栏高度；并按比例缩放并下移
@@ -317,10 +357,8 @@
       applyStageScale();
       // 初始对齐一次，确保右侧底部与左侧输入框底部齐平
       setTimeout(syncSidebarHeight, 0);
-      // 渲染存档列表
-      renderSaveList();
-      const last = localStorage.getItem('lastPlayerId');
-      if (last) el('home-player-id').value = last;
+      // 初始化加载弹窗内存档
+      renderLoadModalSaves();
     });
     window.addEventListener('resize', () => { 
       // 切回桌面时关闭抽屉
@@ -587,29 +625,29 @@
       saves.unshift(entry);
       writeSaves(saves.slice(0,20));
       localStorage.setItem('lastPlayerId', player_id);
-      renderSaveList();
+      renderLoadModalSaves();
     }
     function deleteSave(player_id){
       const saves = readSaves().filter(s=>s.player_id !== player_id);
       writeSaves(saves);
-      renderSaveList();
+      renderLoadModalSaves();
     }
-    function renderSaveList(){
-      const box = document.getElementById('save-list'); if (!box) return;
+    function renderLoadModalSaves(){
+      const box = document.getElementById('lm-save-list'); if (!box) return;
       const saves = readSaves();
       if (!saves.length){ box.innerHTML = '<div class="opacity-60">暂无存档</div>'; return; }
       box.innerHTML = '';
       saves.forEach(s=>{
         const row = document.createElement('div');
-        row.className = 'flex items-center justify-between p-2 border border-[color:var(--border-dark)] rounded';
-        const left = document.createElement('div');
+        row.className = 'save-row p-2 border border-[color:var(--border-dark)] rounded';
+        const left = document.createElement('div'); left.className='save-left';
         const t = new Date(s.createdAt||Date.now());
-        left.innerHTML = `<div class="font-bold">${escapeHTML(s.title||'存档')}</div><div class="opacity-70 text-xs">${t.toLocaleString()} · ${escapeHTML(s.player_id)}</div>`;
+        left.innerHTML = `<div class=\"save-title\">${escapeHTML(s.title||'存档')}</div><div class=\"save-meta\">${t.toLocaleString()} · ${escapeHTML(s.player_id)}</div>`;
         const right = document.createElement('div');
-        right.className = 'flex gap-2';
-        const btnLoad = document.createElement('button'); btnLoad.className='btn'; btnLoad.textContent='加载';
-        btnLoad.onclick = ()=>{ const ipt = document.getElementById('home-player-id'); if (ipt){ ipt.value = s.player_id; } document.getElementById('home-load').click(); };
-        const btnDel = document.createElement('button'); btnDel.className='btn'; btnDel.textContent='删除'; btnDel.onclick = ()=> deleteSave(s.player_id);
+        right.className = 'save-actions';
+        const btnLoad = document.createElement('button'); btnLoad.className='btn btn-sm'; btnLoad.textContent='加载';
+        btnLoad.onclick = ()=>{ const ipt = document.getElementById('lm-player-id'); if (ipt){ ipt.value = s.player_id; } document.getElementById('lm-load').click(); };
+        const btnDel = document.createElement('button'); btnDel.className='btn btn-sm'; btnDel.textContent='删除'; btnDel.onclick = ()=> deleteSave(s.player_id);
         right.appendChild(btnLoad); right.appendChild(btnDel);
         row.appendChild(left); row.appendChild(right);
         box.appendChild(row);
@@ -718,16 +756,7 @@
     }
 
     // ===== 交互：加载/创世/行动 =====
-    el('home-load').onclick = async ()=>{
-      const pid = el('home-player-id').value.trim(); if (!pid) return;
-      try{
-        el('home-status').textContent='加载中...'; playerId = pid; show('game');
-        const result = await apiCall(MAIN_GAME_URL, { player_id: playerId, player_action:'action_show_past' });
-        mergeResult(result); el('home-status').textContent='';
-        // 保存本地存档（加载成功）
-        saveLocalArchive({ player_id: playerId, world_name: result.world_name || '', scene: gameData.scene_description||'', time: gameData.narrative_time||'' });
-      }catch(e){ el('home-status').textContent=''; showModal(e.message, '加载失败'); }
-    };
+    // 移除首页直接加载按钮逻辑，统一走弹窗
 
     // 移除游戏内加载输入栏逻辑
 
