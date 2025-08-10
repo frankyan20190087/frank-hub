@@ -41,9 +41,10 @@
       #mobile-rail .rail-btn:hover{ color:#fff; background:var(--accent); border-color:var(--accent); }
 
       /* 将原右侧栏作为顶部抽屉使用 */
-      #sidebar{ position:fixed; top:0; left:0; right:0; height:75vh; width:100vw; max-width:none; transform:translateY(-100%); transition:transform .2s ease; z-index:60; }
+      #sidebar{ position:fixed; top:0; left:0; right:0; height:75vh; width:100vw; max-width:none; transform:translateY(-100%); transition:transform .2s ease; z-index:60; overflow:hidden; display:flex; flex-direction:column; }
       #sidebar.open{ transform:translateY(0); }
       #sidebar .tab-header{ display:none; }
+      #sidebar-content{ flex:1 1 auto; overflow-y:auto; min-height:0; }
 
       /* 遮罩 */
       #drawer-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:55; display:none; }
@@ -74,18 +75,7 @@
       <h1 class="text-2xl md:text-3xl mb-6">文字冒险</h1>
       <div class="flex flex-col gap-4">
         <button class="btn" id="goto-create">创建世界</button>
-        <div class="flex gap-2 flex-col sm:flex-row">
-          <input id="home-player-id" placeholder="player_id" class="flex-grow px-3 py-2 bg-[color:var(--bg-dark)] border border-[color:var(--border-dark)] rounded" />
-          <button class="btn" id="home-load">加载世界</button>
-        </div>
-        <div class="flex gap-2">
-          <button class="btn" id="home-continue">继续游戏</button>
-        </div>
-        <div class="divider my-2"></div>
-        <div>
-          <div class="mb-2 text-sm opacity-80">本地存档</div>
-          <div id="save-list" class="space-y-2 text-sm"></div>
-        </div>
+        <button class="btn" id="open-load-modal">加载世界</button>
         <button class="btn" id="exit-btn">离开游戏</button>
         <div class="text-sm text-[color:var(--text-secondary)]" id="home-status"></div>
       </div>
